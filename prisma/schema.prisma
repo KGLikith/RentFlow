@@ -8,3 +8,198 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum TenantStatus {
+  ACTIVE
+  LEFT
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum PaymentMethod {
+  UPI
+  BANK_TRANSFER
+  CASH
+}
+
+model User {
+  id          String   @id @default(cuid())
+  clerkId     String   @unique
+  email       String   @unique
+  name        String?
+  phone       String?
+  upiId       String?   // Owner receives payments here
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  properties          Property[]
+  tenantProfiles      TenantProfile[] @relation("UserTenancies")
+  ownedTenants        TenantProfile[] @relation("OwnerTenants")
+
+  @@index([clerkId])
+}
+
+model Property {
+  id          String   @id @default(cuid())
+  ownerId     String
+  name        String
+  address     String
+  city        String
+  state       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  rooms       Room[]
+  tenants     TenantProfile[]
+  leases      Lease[]
+  invoices    Invoice[]
+
+  @@index([ownerId])
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  propertyId  String
+  ownerId     String
+  roomNumber  String
+  capacity    Int
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  tenants     TenantProfile[]
+
+  @@unique([propertyId, roomNumber])
+  @@index([ownerId])
+}
+
+model TenantProfile {
+  id          String   @id @default(cuid())
+
+  userId      String?   
+  ownerId     String
+  propertyId  String
+  roomId      String
+
+  name        String?
+  email       String?
+  phone       String?
+
+  rentAmount  Decimal
+  deposit     Decimal
+
+  status      TenantStatus @default(ACTIVE)
+  isVerified  Boolean @default(false)
+  verifiedAt  DateTime?
+  rejectedAt  DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User?     @relation("UserTenancies", fields: [userId], references: [id], onDelete: SetNull)
+  owner       User      @relation("OwnerTenants", fields: [ownerId], references: [id], onDelete: Cascade)
+  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  room        Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  leases      Lease[]
+  invoices    Invoice[]
+  payments    Payment[]
+
+  @@index([ownerId])
+  @@index([propertyId])
+  @@index([userId])
+  @@index([email])
+  @@index([phone])
+}
+
+model Lease {
+  id          String   @id @default(cuid())
+
+  tenantProfileId String
+  ownerId     String
+  propertyId  String
+
+  startDate   DateTime
+  endDate     DateTime?
+  rentAmount  Decimal
+  deposit     Decimal?
+  rentDueDay  Int
+
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      TenantProfile @relation(fields: [tenantProfileId], references: [id], onDelete: Cascade)
+  property    Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  invoices    Invoice[]
+
+  @@index([tenantProfileId])
+  @@index([ownerId])
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+
+  tenantProfileId String
+  leaseId     String
+  ownerId     String
+  propertyId  String
+
+  month       Int
+  year        Int
+
+  amount      Decimal
+  dueDate     DateTime
+  status      InvoiceStatus @default(PENDING)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      TenantProfile @relation(fields: [tenantProfileId], references: [id], onDelete: Cascade)
+  lease       Lease         @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  property    Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  payments    Payment[]
+
+  @@unique([tenantProfileId, month, year])
+  @@index([ownerId])
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+
+  tenantProfileId String
+  invoiceId   String
+  ownerId     String
+
+  amount      Decimal
+  method      PaymentMethod
+  status      PaymentStatus @default(PENDING)
+
+  transactionRef String?
+  proofUrl    String?   // screenshot upload
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      TenantProfile @relation(fields: [tenantProfileId], references: [id], onDelete: Cascade)
+  invoice     Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+}
