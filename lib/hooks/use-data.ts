@@ -3,10 +3,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { QUERY_KEYS } from '@/lib/cache-keys'
 
-// ============================================================================
-// DASHBOARD QUERIES
-// ============================================================================
-
 export function useDashboardData(ownerId: string) {
   return useQuery({
     queryKey: QUERY_KEYS.dashboardDetail(ownerId),
@@ -35,10 +31,6 @@ export function useTenantDashboardData(userId: string) {
   })
 }
 
-// ============================================================================
-// PROPERTIES QUERIES
-// ============================================================================
-
 export function usePropertiesList(ownerId: string) {
   return useQuery({
     queryKey: QUERY_KEYS.propertiesList(ownerId),
@@ -65,10 +57,6 @@ export function usePropertyDetail(propertyId: string) {
   })
 }
 
-// ============================================================================
-// ROOMS QUERIES
-// ============================================================================
-
 export function useRoomsList(propertyId: string) {
   return useQuery({
     queryKey: QUERY_KEYS.roomsList(propertyId),
@@ -91,13 +79,10 @@ export function useRoomDetail(roomId: string) {
       return response.json()
     },
     enabled: !!roomId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5, 
   })
 }
 
-// ============================================================================
-// TENANTS QUERIES
-// ============================================================================
 
 export function useTenantsList(ownerId: string) {
   return useQuery({
@@ -108,7 +93,7 @@ export function useTenantsList(ownerId: string) {
       return response.json()
     },
     enabled: !!ownerId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5, 
   })
 }
 
@@ -121,13 +106,10 @@ export function useTenantDetail(tenantId: string) {
       return response.json()
     },
     enabled: !!tenantId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5, 
   })
 }
 
-// ============================================================================
-// INVOICES QUERIES
-// ============================================================================
 
 export function useInvoicesList(ownerId: string) {
   return useQuery({
@@ -138,7 +120,7 @@ export function useInvoicesList(ownerId: string) {
       return response.json()
     },
     enabled: !!ownerId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5, 
   })
 }
 
@@ -151,13 +133,10 @@ export function useTenantInvoices(userId: string) {
       return response.json()
     },
     enabled: !!userId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5, 
   })
 }
 
-// ============================================================================
-// PAYMENTS QUERIES
-// ============================================================================
 
 export function usePaymentsList(ownerId: string) {
   return useQuery({
@@ -168,7 +147,7 @@ export function usePaymentsList(ownerId: string) {
       return response.json()
     },
     enabled: !!ownerId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5, 
   })
 }
 
@@ -181,13 +160,9 @@ export function useTenantPayments(tenantId: string) {
       return response.json()
     },
     enabled: !!tenantId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5, 
   })
 }
-
-// ============================================================================
-// LEASES QUERIES
-// ============================================================================
 
 export function useLeasesList(ownerId: string) {
   return useQuery({
@@ -198,7 +173,7 @@ export function useLeasesList(ownerId: string) {
       return response.json()
     },
     enabled: !!ownerId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5, 
   })
 }
 
@@ -211,6 +186,6 @@ export function useTenantLeases(userId: string) {
       return response.json()
     },
     enabled: !!userId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5, 
   })
 }

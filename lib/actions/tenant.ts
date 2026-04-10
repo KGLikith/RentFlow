@@ -4,357 +4,177 @@
 import { prisma } from '@/lib/prisma'
 import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
+import { Decimal } from '@prisma/client/runtime/library'
 
-// Validation schemas
-const RoomSchema = z.object({
-  roomNumber: z.string().min(1, 'Room number required'),
-  capacity: z.number().min(1, 'Capacity must be at least 1'),
+export const TenantBulkSchema = z.object({
+  name: z.string().min(1, 'Name required'),
+  phone: z.string().optional(),
+  email: z.string().email('Invalid email').optional(),
+  roomId: z.string(),
+  rent: z.number().min(0, 'Rent must be positive'),
+  deposit: z.number().min(0, 'Deposit must be positive'),
 })
 
-const BulkRoomRangeSchema = z.object({
-  propertyId: z.string(),
-  startRoomNumber: z.number().min(1),
-  endRoomNumber: z.number().min(1),
-  capacity: z.number().min(1),
-})
-
-const BulkRoomPatternSchema = z.object({
-  propertyId: z.string(),
-  floorNumber: z.number().min(1),
-  roomsPerFloor: z.number().min(1),
-  capacity: z.number().min(1),
-})
-
-export interface BulkRoomPreview {
-  roomNumber: string
-  capacity: number
+export interface TenantBulkPreview {
+  rowIndex: number
+  name: string
+  phone?: string
+  email?: string
+  roomId: string
+  rent: number
+  deposit: number
   isValid: boolean
   error?: string
+  warnings?: string[]
 }
 
-export interface BulkRoomResult {
+export interface TenantBulkResult {
   total: number
   success: number
   failed: number
   details: {
-    created: Array<{ id: string; roomNumber: string }>
-    errors: Array<{ roomNumber: string; error: string }>
+    created: Array<{ id: string; name: string; roomId: string }>
+    errors: Array<{ rowIndex: number; name: string; error: string }>
   }
 }
 
-/**
- * Get all rooms for a property
- */
-export async function getRoomsByProperty(propertyId: string) {
-  const { userId } = await auth()
-  if (!userId) throw new Error('Unauthorized')
-
-  // Verify owner of property
-  const property = await prisma.property.findFirst({
-    where: {
-      id: propertyId,
-      ownerId: userId,
-    },
-  })
-
-  if (!property) throw new Error('Property not found')
-
-  return await prisma.room.findMany({
-    where: { propertyId },
-    orderBy: { roomNumber: 'asc' },
-    include: {
-      tenantProfiles: {
-        where: { status: 'ACTIVE' },
-      },
-    },
-  })
-}
-
-/**
- * Generate preview for range-based bulk creation
- */
-export function generateRangeRoomPreview(
-  startRoom: number,
-  endRoom: number,
-  capacity: number
-): BulkRoomPreview[] {
-  const previews: BulkRoomPreview[] = []
-
-  if (startRoom > endRoom) {
-    return [{
-      roomNumber: '',
-      capacity: 0,
-      isValid: false,
-      error: 'Start room must be less than end room',
-    }]
-  }
-
-  for (let i = startRoom; i <= endRoom; i++) {
-    previews.push({
-      roomNumber: i.toString(),
-      capacity,
-      isValid: true,
-    })
-  }
-
-  return previews
-}
-
-/**
- * Generate preview for pattern-based bulk creation
- */
-export function generatePatternRoomPreview(
-  floorNumber: number,
-  roomsPerFloor: number,
-  capacity: number
-): BulkRoomPreview[] {
-  const previews: BulkRoomPreview[] = []
-
-  for (let i = 1; i <= roomsPerFloor; i++) {
-    const roomNumber = `${floorNumber}${String(i).padStart(2, '0')}`
-    previews.push({
-      roomNumber,
-      capacity,
-      isValid: true,
-    })
-  }
-
-  return previews
-}
-
-/**
- * Bulk create rooms from range (1-10, 11-20, etc)
- */
-export async function bulkCreateRoomsByRange(
-  propertyId: string,
-  startRoomNumber: number,
-  endRoomNumber: number,
-  capacity: number
-): Promise<BulkRoomResult> {
-  const { userId } = await auth()
-  if (!userId) throw new Error('Unauthorized')
-
-  // Validate input
-  const validated = BulkRoomRangeSchema.parse({
-    propertyId,
-    startRoomNumber,
-    endRoomNumber,
-    capacity,
-  })
-
-  // Verify property ownership
-  const property = await prisma.property.findFirst({
-    where: {
-      id: propertyId,
-      ownerId: userId,
-    },
-  })
-
-  if (!property) throw new Error('Property not found')
-
-  // Get existing rooms to check for duplicates
-  const existingRooms = await prisma.room.findMany({
-    where: { propertyId },
-    select: { roomNumber: true },
-  })
-
-  const existingNumbers = new Set(existingRooms.map((r: { roomNumber: any }) => r.roomNumber))
-
-  const result: BulkRoomResult = {
-    total: 0,
-    success: 0,
-    failed: 0,
-    details: {
-      created: [],
-      errors: [],
-    },
-  }
-
-  for (let i = startRoomNumber; i <= endRoomNumber; i++) {
-    const roomNumber = i.toString()
-    result.total++
-
-    if (existingNumbers.has(roomNumber)) {
-      result.failed++
-      result.details.errors.push({
-        roomNumber,
-        error: 'Room number already exists',
-      })
-      continue
-    }
-
-    try {
-      const room = await prisma.room.create({
-        data: {
-          propertyId,
-          ownerId: userId,
-          roomNumber,
-          capacity,
-        },
-      })
-
-      result.success++
-      result.details.created.push({
-        id: room.id,
-        roomNumber: room.roomNumber,
-      })
-    } catch (error) {
-      result.failed++
-      result.details.errors.push({
-        roomNumber,
-        error: 'Failed to create room',
-      })
-    }
-  }
-
-  return result
-}
-
-/**
- * Bulk create rooms by pattern (floor-based: 101-110, 201-210, etc)
- */
-export async function bulkCreateRoomsByPattern(
-  propertyId: string,
-  floorNumber: number,
-  roomsPerFloor: number,
-  capacity: number
-): Promise<BulkRoomResult> {
-  const { userId } = await auth()
-  if (!userId) throw new Error('Unauthorized')
-
-  // Validate input
-  const validated = BulkRoomPatternSchema.parse({
-    propertyId,
-    floorNumber,
-    roomsPerFloor,
-    capacity,
-  })
-
-  // Verify property ownership
-  const property = await prisma.property.findFirst({
-    where: {
-      id: propertyId,
-      ownerId: userId,
-    },
-  })
-
-  if (!property) throw new Error('Property not found')
-
-  // Get existing rooms
-  const existingRooms = await prisma.room.findMany({
-    where: { propertyId },
-    select: { roomNumber: true },
-  })
-
-  const existingNumbers = new Set(existingRooms.map((r: { roomNumber: any }) => r.roomNumber))
-
-  const result: BulkRoomResult = {
-    total: 0,
-    success: 0,
-    failed: 0,
-    details: {
-      created: [],
-      errors: [],
-    },
-  }
-
-  for (let i = 1; i <= roomsPerFloor; i++) {
-    const roomNumber = `${floorNumber}${String(i).padStart(2, '0')}`
-    result.total++
-
-    if (existingNumbers.has(roomNumber)) {
-      result.failed++
-      result.details.errors.push({
-        roomNumber,
-        error: 'Room number already exists',
-      })
-      continue
-    }
-
-    try {
-      const room = await prisma.room.create({
-        data: {
-          propertyId,
-          ownerId: userId,
-          roomNumber,
-          capacity,
-        },
-      })
-
-      result.success++
-      result.details.created.push({
-        id: room.id,
-        roomNumber: room.roomNumber,
-      })
-    } catch (error) {
-      result.failed++
-      result.details.errors.push({
-        roomNumber,
-        error: 'Failed to create room',
-      })
-    }
-  }
-
-  return result
-}
-
-/**
- * Parse and validate CSV rooms
- */
-export function parseCSVRooms(
-  csvContent: string
-): BulkRoomPreview[] {
+export function parseCSVTenants(csvContent: string): TenantBulkPreview[] {
   const lines = csvContent.trim().split('\n')
-  const previews: BulkRoomPreview[] = []
+  const previews: TenantBulkPreview[] = []
 
-  // Skip header
   const dataLines = lines.slice(1)
 
   dataLines.forEach((line, index) => {
-    const [roomNumber, capacityStr] = line.split(',').map((s) => s.trim())
+    const [name, phone, email, roomId, rentStr, depositStr] = line
+      .split(',')
+      .map((s) => s.trim())
 
-    if (!roomNumber) {
-      previews.push({
-        roomNumber: '',
-        capacity: 0,
-        isValid: false,
-        error: `Row ${index + 2}: Missing room number`,
-      })
-      return
+    const rowIndex = index + 2 // +2 for header and 1-based indexing
+    const errors: string[] = []
+    const warnings: string[] = []
+
+    if (!name) {
+      errors.push('Missing tenant name')
     }
 
-    const capacity = parseInt(capacityStr, 10)
-    if (isNaN(capacity) || capacity < 1) {
-      previews.push({
-        roomNumber,
-        capacity: 0,
-        isValid: false,
-        error: `Row ${index + 2}: Invalid capacity`,
-      })
-      return
+    if (!roomId) {
+      errors.push('Missing room ID')
+    }
+
+    const rent = parseInt(rentStr || '0', 10)
+    if (isNaN(rent) || rent < 0) {
+      errors.push('Invalid rent amount')
+    }
+
+    const deposit = parseInt(depositStr || '0', 10)
+    if (isNaN(deposit) || deposit < 0) {
+      errors.push('Invalid deposit amount')
+    }
+
+    if (email && !z.email().safeParse(email).success) {
+      warnings.push('Invalid email format')
     }
 
     previews.push({
-      roomNumber,
-      capacity,
-      isValid: true,
+      rowIndex,
+      name: name || '',
+      phone: phone || undefined,
+      email: email || undefined,
+      roomId: roomId || '',
+      rent,
+      deposit,
+      isValid: errors.length === 0,
+      error: errors.join('; '),
+      warnings: warnings.length > 0 ? warnings : undefined,
     })
   })
 
   return previews
 }
 
-/**
- * Bulk create rooms from CSV
- */
-export async function bulkCreateRoomsFromCSV(
+export async function validateTenantBulk(
   propertyId: string,
-  csvContent: string
-): Promise<BulkRoomResult> {
+  tenants: TenantBulkPreview[]
+): Promise<TenantBulkPreview[]> {
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
-  // Verify property ownership
+  // Get property and verify ownership
+  const property = await prisma.property.findFirst({
+    where: {
+      id: propertyId,
+      ownerId: userId,
+    },
+    include: {
+      rooms: true,
+    },
+  })
+
+  if (!property) throw new Error('Property not found')
+
+  const roomMap = new Map<string, { number: string; capacity: number }>(
+    property.rooms.map((r: any) => [r.id, { number: r.roomNumber, capacity: r.capacity }])
+  )
+
+  const existingTenants = await prisma.tenantProfile.findMany({
+    where: {
+      propertyId,
+      status: 'ACTIVE',
+    },
+    select: {
+      roomId: true,
+    },
+  })
+
+  const occupancyMap = new Map<string, number>()
+  existingTenants.forEach((tenant: { roomId: string }) => {
+    occupancyMap.set(tenant.roomId, (occupancyMap.get(tenant.roomId) || 0) + 1)
+  })
+
+  return tenants.map((tenant) => {
+    if (!tenant.isValid) return tenant
+
+    const warnings: string[] = [...(tenant.warnings || [])]
+
+    if (!roomMap.has(tenant.roomId)) {
+      return {
+        ...tenant,
+        isValid: false,
+        error: 'Room not found',
+      }
+    }
+
+    const room = roomMap.get(tenant.roomId)!
+    const currentOccupancy = occupancyMap.get(tenant.roomId) || 0
+
+    if (currentOccupancy >= room.capacity) {
+      return {
+        ...tenant,
+        isValid: false,
+        error: `Room ${room.number} is full (capacity: ${room.capacity})`,
+      }
+    }
+
+    if (currentOccupancy + 1 === room.capacity) {
+      warnings.push(`This will fill the room to capacity`)
+    }
+
+    return {
+      ...tenant,
+      isValid: true,
+      error: undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    }
+  })
+}
+
+export async function bulkCreateTenants(
+  propertyId: string,
+  tenants: TenantBulkPreview[]
+): Promise<TenantBulkResult> {
+  const { userId } = await auth()
+  if (!userId) throw new Error('Unauthorized')
+
   const property = await prisma.property.findFirst({
     where: {
       id: propertyId,
@@ -364,33 +184,10 @@ export async function bulkCreateRoomsFromCSV(
 
   if (!property) throw new Error('Property not found')
 
-  const previews = parseCSVRooms(csvContent)
-  const validPreviews = previews.filter((p) => p.isValid)
+  const validatedTenants = await validateTenantBulk(propertyId, tenants)
 
-  // Check for duplicates in CSV itself
-  const seenRoomNumbers = new Set<string>()
-  const validatedPreviews = validPreviews.map((preview) => {
-    if (seenRoomNumbers.has(preview.roomNumber)) {
-      return {
-        ...preview,
-        isValid: false,
-        error: 'Duplicate room number in CSV',
-      }
-    }
-    seenRoomNumbers.add(preview.roomNumber)
-    return preview
-  })
-
-  // Get existing rooms
-  const existingRooms = await prisma.room.findMany({
-    where: { propertyId },
-    select: { roomNumber: true },
-  })
-
-  const existingNumbers = new Set(existingRooms.map((r: { roomNumber: any }) => r.roomNumber))
-
-  const result: BulkRoomResult = {
-    total: validatedPreviews.length,
+  const result: TenantBulkResult = {
+    total: validatedTenants.length,
     success: 0,
     failed: 0,
     details: {
@@ -399,45 +196,62 @@ export async function bulkCreateRoomsFromCSV(
     },
   }
 
-  for (const preview of validatedPreviews) {
-    if (!preview.isValid) {
+  for (const tenant of validatedTenants) {
+    if (!tenant.isValid) {
       result.failed++
       result.details.errors.push({
-        roomNumber: preview.roomNumber,
-        error: preview.error || 'Invalid room data',
-      })
-      continue
-    }
-
-    if (existingNumbers.has(preview.roomNumber)) {
-      result.failed++
-      result.details.errors.push({
-        roomNumber: preview.roomNumber,
-        error: 'Room already exists',
+        rowIndex: tenant.rowIndex,
+        name: tenant.name,
+        error: tenant.error || 'Invalid tenant data',
       })
       continue
     }
 
     try {
-      const room = await prisma.room.create({
+      const tenantProfile = await prisma.tenantProfile.create({
         data: {
+          ownerId: userId,
+          propertyId,
+          roomId: tenant.roomId,
+          name: tenant.name,
+          phone: tenant.phone,
+          email: tenant.email,
+          rentAmount: new Decimal(tenant.rent),
+          deposit: new Decimal(tenant.deposit),
+          status: 'ACTIVE',
+          isVerified: false,
+        },
+      })
+
+      const today = new Date()
+      const leaseEndDate = new Date(today)
+      leaseEndDate.setFullYear(leaseEndDate.getFullYear() + 1)
+
+      await prisma.lease.create({
+        data: {
+          tenantProfileId: tenantProfile.id,
           propertyId,
           ownerId: userId,
-          roomNumber: preview.roomNumber,
-          capacity: preview.capacity,
+          startDate: today,
+          endDate: leaseEndDate,
+          rentAmount: new Decimal(tenant.rent),
+          deposit: new Decimal(tenant.deposit),
+          rentDueDay: 1,
         },
       })
 
       result.success++
       result.details.created.push({
-        id: room.id,
-        roomNumber: room.roomNumber,
+        id: tenantProfile.id,
+        name: tenant.name,
+        roomId: tenant.roomId,
       })
     } catch (error) {
       result.failed++
       result.details.errors.push({
-        roomNumber: preview.roomNumber,
-        error: 'Database error creating room',
+        rowIndex: tenant.rowIndex,
+        name: tenant.name,
+        error: `Failed to create tenant: ${error instanceof Error ? error.message : 'Unknown error'}`,
       })
     }
   }

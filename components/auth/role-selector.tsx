@@ -22,7 +22,6 @@ export function RoleSelector({ onSelect, selected }: RoleSelectorProps) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {/* Owner Card */}
         <button
           onClick={() => onSelect('OWNER')}
           className={cn(
@@ -61,7 +60,6 @@ export function RoleSelector({ onSelect, selected }: RoleSelectorProps) {
           </div>
         </button>
 
-        {/* Tenant Card */}
         <button
           onClick={() => onSelect('TENANT')}
           className={cn(

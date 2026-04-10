@@ -13,7 +13,7 @@ export async function getOrCreateUser(clerkId: string, email: string, firstName?
         firstName,
         lastName,
         phoneNumber,
-        userType: 'owner', // Default to owner, can be updated
+        userType: 'owner', 
       },
     })
   } else {
@@ -32,10 +32,6 @@ export async function getOrCreateUser(clerkId: string, email: string, firstName?
   return user
 }
 
-/**
- * Find matching tenant profiles for a user
- * Searches by email or phone
- */
 export async function findMatchingTenantProfiles(email?: string, phone?: string) {
   if (!email && !phone) {
     return []
@@ -80,12 +76,7 @@ export async function findMatchingTenantProfiles(email?: string, phone?: string)
   return profiles
 }
 
-/**
- * Get tenant states for a user after login
- * Handles: NOT_ASSIGNED, PENDING_VERIFICATION, VERIFIED, MULTIPLE_TENANCIES
- */
 export async function getTenantState(userId: string, email?: string, phone?: string) {
-  // Check if user has any verified tenant profiles
   const verifiedProfiles = await prisma.tenantProfile.findMany({
     where: {
       userId,
@@ -115,7 +106,6 @@ export async function getTenantState(userId: string, email?: string, phone?: str
     },
   })
 
-  // If user has verified tenancies, they're already linked
   if (verifiedProfiles.length === 1) {
     return {
       state: 'VERIFIED',
@@ -130,7 +120,6 @@ export async function getTenantState(userId: string, email?: string, phone?: str
     }
   }
 
-  // Check for pending verification profiles (unlinked but matching)
   const pendingProfiles = await findMatchingTenantProfiles(email, phone)
 
   if (pendingProfiles.length === 0) {
@@ -152,10 +141,6 @@ export async function getTenantState(userId: string, email?: string, phone?: str
   }
 }
 
-/**
- * Link a tenant profile to a user after confirmation
- * CRITICAL: Only call after explicit user confirmation
- */
 export async function linkTenantProfile(tenantProfileId: string, userId: string) {
   // Verify the tenant profile exists and is unlinked
   const profile = await prisma.tenantProfile.findUnique({
@@ -170,7 +155,6 @@ export async function linkTenantProfile(tenantProfileId: string, userId: string)
     throw new Error('Tenant profile is already linked to another user')
   }
 
-  // Link the profile
   const updated = await prisma.tenantProfile.update({
     where: { id: tenantProfileId },
     data: {
@@ -204,10 +188,6 @@ export async function linkTenantProfile(tenantProfileId: string, userId: string)
   return updated
 }
 
-/**
- * Reject a tenant profile
- * User clicked "This is not me"
- */
 export async function rejectTenantProfile(tenantProfileId: string) {
   return await prisma.tenantProfile.update({
     where: { id: tenantProfileId },
@@ -217,10 +197,6 @@ export async function rejectTenantProfile(tenantProfileId: string) {
   })
 }
 
-/**
- * Unlink a tenant profile (owner can remove tenant)
- * CRITICAL: Revokes access immediately
- */
 export async function unlinkTenantProfile(tenantProfileId: string, ownerId: string) {
   // Verify owner permission
   const profile = await prisma.tenantProfile.findUnique({
@@ -235,7 +211,6 @@ export async function unlinkTenantProfile(tenantProfileId: string, ownerId: stri
     throw new Error('Only the owner can unlink this tenant')
   }
 
-  // Unlink
   return await prisma.tenantProfile.update({
     where: { id: tenantProfileId },
     data: {
@@ -246,9 +221,6 @@ export async function unlinkTenantProfile(tenantProfileId: string, ownerId: stri
   })
 }
 
-/**
- * Create a new tenant profile (by owner)
- */
 export async function createTenantProfile(
   ownerId: string,
   propertyId: string,
@@ -294,11 +266,7 @@ export async function createTenantProfile(
   })
 }
 
-/**
- * Mark a tenant as LEFT (moved out)
- */
 export async function markTenantAsLeft(tenantProfileId: string, ownerId: string) {
-  // Verify owner permission
   const profile = await prisma.tenantProfile.findUnique({
     where: { id: tenantProfileId },
   })
@@ -321,9 +289,6 @@ export async function markTenantAsLeft(tenantProfileId: string, ownerId: string)
   })
 }
 
-/**
- * Edit tenant details (by owner)
- */
 export async function editTenantProfile(
   tenantProfileId: string,
   ownerId: string,
@@ -333,7 +298,6 @@ export async function editTenantProfile(
     phone?: string
   }
 ) {
-  // Verify owner permission
   const profile = await prisma.tenantProfile.findUnique({
     where: { id: tenantProfileId },
   })

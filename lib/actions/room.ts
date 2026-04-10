@@ -3,53 +3,12 @@
 
 import { prisma } from '@/lib/prisma'
 import { auth } from '@clerk/nextjs/server'
-import { z } from 'zod'
+import { BulkRoomRangeSchema, BulkRoomResult, BulkRoomPreview, BulkRoomPatternSchema } from './schema'
 
-// Validation schemas
-const RoomSchema = z.object({
-  roomNumber: z.string().min(1, 'Room number required'),
-  capacity: z.number().min(1, 'Capacity must be at least 1'),
-})
-
-const BulkRoomRangeSchema = z.object({
-  propertyId: z.string(),
-  startRoomNumber: z.number().min(1),
-  endRoomNumber: z.number().min(1),
-  capacity: z.number().min(1),
-})
-
-const BulkRoomPatternSchema = z.object({
-  propertyId: z.string(),
-  floorNumber: z.number().min(1),
-  roomsPerFloor: z.number().min(1),
-  capacity: z.number().min(1),
-})
-
-export interface BulkRoomPreview {
-  roomNumber: string
-  capacity: number
-  isValid: boolean
-  error?: string
-}
-
-export interface BulkRoomResult {
-  total: number
-  success: number
-  failed: number
-  details: {
-    created: Array<{ id: string; roomNumber: string }>
-    errors: Array<{ roomNumber: string; error: string }>
-  }
-}
-
-/**
- * Get all rooms for a property
- */
 export async function getRoomsByProperty(propertyId: string) {
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
-  // Verify owner of property
   const property = await prisma.property.findFirst({
     where: {
       id: propertyId,
@@ -70,9 +29,6 @@ export async function getRoomsByProperty(propertyId: string) {
   })
 }
 
-/**
- * Generate preview for range-based bulk creation
- */
 export function generateRangeRoomPreview(
   startRoom: number,
   endRoom: number,
@@ -100,9 +56,6 @@ export function generateRangeRoomPreview(
   return previews
 }
 
-/**
- * Generate preview for pattern-based bulk creation
- */
 export function generatePatternRoomPreview(
   floorNumber: number,
   roomsPerFloor: number,
@@ -122,9 +75,6 @@ export function generatePatternRoomPreview(
   return previews
 }
 
-/**
- * Bulk create rooms from range (1-10, 11-20, etc)
- */
 export async function bulkCreateRoomsByRange(
   propertyId: string,
   startRoomNumber: number,
@@ -134,7 +84,6 @@ export async function bulkCreateRoomsByRange(
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
-  // Validate input
   const validated = BulkRoomRangeSchema.parse({
     propertyId,
     startRoomNumber,
@@ -142,7 +91,6 @@ export async function bulkCreateRoomsByRange(
     capacity,
   })
 
-  // Verify property ownership
   const property = await prisma.property.findFirst({
     where: {
       id: propertyId,
@@ -152,7 +100,6 @@ export async function bulkCreateRoomsByRange(
 
   if (!property) throw new Error('Property not found')
 
-  // Get existing rooms to check for duplicates
   const existingRooms = await prisma.room.findMany({
     where: { propertyId },
     select: { roomNumber: true },
@@ -210,9 +157,6 @@ export async function bulkCreateRoomsByRange(
   return result
 }
 
-/**
- * Bulk create rooms by pattern (floor-based: 101-110, 201-210, etc)
- */
 export async function bulkCreateRoomsByPattern(
   propertyId: string,
   floorNumber: number,
@@ -230,7 +174,6 @@ export async function bulkCreateRoomsByPattern(
     capacity,
   })
 
-  // Verify property ownership
   const property = await prisma.property.findFirst({
     where: {
       id: propertyId,
@@ -240,7 +183,6 @@ export async function bulkCreateRoomsByPattern(
 
   if (!property) throw new Error('Property not found')
 
-  // Get existing rooms
   const existingRooms = await prisma.room.findMany({
     where: { propertyId },
     select: { roomNumber: true },
@@ -298,9 +240,6 @@ export async function bulkCreateRoomsByPattern(
   return result
 }
 
-/**
- * Parse and validate CSV rooms
- */
 export function parseCSVRooms(
   csvContent: string
 ): BulkRoomPreview[] {
@@ -344,9 +283,6 @@ export function parseCSVRooms(
   return previews
 }
 
-/**
- * Bulk create rooms from CSV
- */
 export async function bulkCreateRoomsFromCSV(
   propertyId: string,
   csvContent: string
@@ -381,7 +317,6 @@ export async function bulkCreateRoomsFromCSV(
     return preview
   })
 
-  // Get existing rooms
   const existingRooms = await prisma.room.findMany({
     where: { propertyId },
     select: { roomNumber: true },

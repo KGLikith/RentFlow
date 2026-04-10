@@ -14,7 +14,6 @@ export async function getAuthUser() {
     })
 
     if (!user) {
-      // Create a new user if they don't exist
       const clerkUser = await (await auth()).has({ permission: 'user:read' })
       user = await prisma.user.create({
         data: {

@@ -13,7 +13,6 @@ export function ProgressIndicator({
 }: ProgressIndicatorProps) {
   return (
     <div className="w-full space-y-2">
-      {/* Progress bar */}
       <div className="flex gap-2">
         {Array.from({ length: totalSteps }).map((_, index) => (
           <div
@@ -30,7 +29,6 @@ export function ProgressIndicator({
         ))}
       </div>
 
-      {/* Step labels */}
       {labels && (
         <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
           {labels.map((label, index) => (
@@ -41,7 +39,6 @@ export function ProgressIndicator({
         </div>
       )}
 
-      {/* Step counter */}
       <div className="text-center text-sm font-medium text-gray-600 dark:text-gray-400">
         Step {currentStep} of {totalSteps}
       </div>

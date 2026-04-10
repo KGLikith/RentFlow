@@ -14,8 +14,7 @@ export function AuthLayout({
 }: AuthLayoutProps) {
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 flex flex-col">
-        {/* Header */}
+      <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 flex flex-col">
         <header className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
           <div className="max-w-md mx-auto px-4 py-4 flex items-center gap-2">
             <div className="p-2 rounded-lg bg-emerald-600">
@@ -32,7 +31,6 @@ export function AuthLayout({
           </div>
         </header>
 
-        {/* Main Content */}
         <main className="flex-1 w-full max-w-md mx-auto px-4 py-8 sm:py-12">
           {title && (
             <div className="mb-8 space-y-2">
@@ -48,7 +46,6 @@ export function AuthLayout({
           {children}
         </main>
 
-        {/* Footer */}
         <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
           <div className="max-w-md mx-auto px-4 py-4 text-center">
             <p className="text-xs text-gray-600 dark:text-gray-400">

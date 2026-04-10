@@ -2,20 +2,12 @@
 
 import { ReactNode } from 'react'
 
-/**
- * ClerkProviderWrapper - A client-side wrapper that handles Clerk authentication.
- * 
- * Note: Clerk provider initialization is intentionally kept minimal here to avoid
- * Next.js 16 Promise-related issues with headers(). The actual Clerk setup should
- * be done via route handlers and middleware when environment variables are available.
- */
 export function ClerkProviderWrapper({ children }: { children: ReactNode }) {
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 
-  // If Clerk keys are not configured, show setup instructions
   if (!publishableKey) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-orange-100 flex flex-col items-center justify-center px-4">
+      <div className="min-h-screen bg-linear-to-br from-yellow-50 to-orange-100 flex flex-col items-center justify-center px-4">
         <div className="max-w-2xl w-full bg-white rounded-lg shadow-xl p-8 space-y-6">
           <div className="space-y-3">
             <h1 className="text-4xl font-bold text-gray-900">Setup Required</h1>
@@ -93,7 +85,5 @@ export function ClerkProviderWrapper({ children }: { children: ReactNode }) {
     )
   }
 
-  // Clerk keys are available - just render children without initializing Clerk
-  // to avoid Next.js 16 Promise-related issues with headers()
   return children
 }
