@@ -1,5 +1,7 @@
 'use client'
 
+// changed -> user-role | null
+
 import React, { createContext, useContext, useState, useCallback } from 'react'
 
 export type UserRole = 'OWNER' | 'TENANT'
@@ -18,7 +20,7 @@ export interface OnboardingState {
 interface AuthContextType {
   onboarding: OnboardingState
   setCurrentStep: (step: number) => void
-  setUserRole: (role: UserRole) => void
+  setUserRole: (role: UserRole | null) => void
   updateOwnerData: (data: Partial<OnboardingState>) => void
   resetOnboarding: () => void
 }
@@ -37,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setOnboarding(prev => ({ ...prev, currentStep: step }))
   }, [])
 
-  const setUserRole = useCallback((role: UserRole) => {
+  const setUserRole = useCallback((role: UserRole | null) => {
     setOnboarding(prev => ({ ...prev, userRole: role }))
   }, [])
 
