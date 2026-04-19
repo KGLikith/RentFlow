@@ -1,10 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use server'
 
 import { prisma } from '@/lib/prisma'
 import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
+import { Room, TenantStatus } from '@/app/generated/prisma/client'
 
 export const TenantBulkSchema = z.object({
   name: z.string().min(1, 'Name required'),
@@ -49,7 +49,7 @@ export function parseCSVTenants(csvContent: string): TenantBulkPreview[] {
       .split(',')
       .map((s) => s.trim())
 
-    const rowIndex = index + 2 // +2 for header and 1-based indexing
+    const rowIndex = index + 2
     const errors: string[] = []
     const warnings: string[] = []
 
@@ -99,7 +99,6 @@ export async function validateTenantBulk(
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
-  // Get property and verify ownership
   const property = await prisma.property.findFirst({
     where: {
       id: propertyId,
@@ -113,13 +112,13 @@ export async function validateTenantBulk(
   if (!property) throw new Error('Property not found')
 
   const roomMap = new Map<string, { number: string; capacity: number }>(
-    property.rooms.map((r: any) => [r.id, { number: r.roomNumber, capacity: r.capacity }])
+    property.rooms.map((r: Room) => [r.id, { number: r.roomNumber, capacity: r.capacity }])
   )
 
   const existingTenants = await prisma.tenantProfile.findMany({
     where: {
       propertyId,
-      status: 'ACTIVE',
+      status: TenantStatus.ACTIVE,
     },
     select: {
       roomId: true,
@@ -127,7 +126,7 @@ export async function validateTenantBulk(
   })
 
   const occupancyMap = new Map<string, number>()
-  existingTenants.forEach((tenant: { roomId: string }) => {
+  existingTenants.forEach((tenant) => {
     occupancyMap.set(tenant.roomId, (occupancyMap.get(tenant.roomId) || 0) + 1)
   })
 
@@ -231,7 +230,6 @@ export async function bulkCreateTenants(
         data: {
           tenantProfileId: tenantProfile.id,
           propertyId,
-          ownerId: userId,
           startDate: today,
           endDate: leaseEndDate,
           rentAmount: new Decimal(tenant.rent),

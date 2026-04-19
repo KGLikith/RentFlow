@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use server'
 
@@ -22,7 +23,7 @@ export async function getRoomsByProperty(propertyId: string) {
     where: { propertyId },
     orderBy: { roomNumber: 'asc' },
     include: {
-      tenantProfiles: {
+      tenants: {
         where: { status: 'ACTIVE' },
       },
     },
@@ -134,7 +135,6 @@ export async function bulkCreateRoomsByRange(
       const room = await prisma.room.create({
         data: {
           propertyId,
-          ownerId: userId,
           roomNumber,
           capacity,
         },
@@ -166,7 +166,6 @@ export async function bulkCreateRoomsByPattern(
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
-  // Validate input
   const validated = BulkRoomPatternSchema.parse({
     propertyId,
     floorNumber,
@@ -217,11 +216,11 @@ export async function bulkCreateRoomsByPattern(
       const room = await prisma.room.create({
         data: {
           propertyId,
-          ownerId: userId,
           roomNumber,
-          capacity,
+          capacity: validated.capacity,
         },
       })
+
 
       result.success++
       result.details.created.push({
@@ -246,7 +245,6 @@ export function parseCSVRooms(
   const lines = csvContent.trim().split('\n')
   const previews: BulkRoomPreview[] = []
 
-  // Skip header
   const dataLines = lines.slice(1)
 
   dataLines.forEach((line, index) => {
@@ -290,7 +288,6 @@ export async function bulkCreateRoomsFromCSV(
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
-  // Verify property ownership
   const property = await prisma.property.findFirst({
     where: {
       id: propertyId,
@@ -303,7 +300,6 @@ export async function bulkCreateRoomsFromCSV(
   const previews = parseCSVRooms(csvContent)
   const validPreviews = previews.filter((p) => p.isValid)
 
-  // Check for duplicates in CSV itself
   const seenRoomNumbers = new Set<string>()
   const validatedPreviews = validPreviews.map((preview) => {
     if (seenRoomNumbers.has(preview.roomNumber)) {
@@ -357,7 +353,6 @@ export async function bulkCreateRoomsFromCSV(
       const room = await prisma.room.create({
         data: {
           propertyId,
-          ownerId: userId,
           roomNumber: preview.roomNumber,
           capacity: preview.capacity,
         },

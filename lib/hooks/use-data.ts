@@ -12,8 +12,8 @@ export function useDashboardData(ownerId: string) {
       return response.json()
     },
     enabled: !!ownerId,
-    staleTime: 1000 * 60, // 1 minute
-    refetchInterval: 1000 * 60 * 5, // Refetch every 5 minutes
+    staleTime: 1000 * 60, 
+    refetchInterval: 1000 * 60 * 5, 
   })
 }
 
@@ -26,8 +26,8 @@ export function useTenantDashboardData(userId: string) {
       return response.json()
     },
     enabled: !!userId,
-    staleTime: 1000 * 60, // 1 minute
-    refetchInterval: 1000 * 60 * 5, // Refetch every 5 minutes
+    staleTime: 1000 * 60, 
+    refetchInterval: 1000 * 60 * 5, 
   })
 }
 
@@ -40,7 +40,7 @@ export function usePropertiesList(ownerId: string) {
       return response.json()
     },
     enabled: !!ownerId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5, 
   })
 }
 
@@ -53,7 +53,7 @@ export function usePropertyDetail(propertyId: string) {
       return response.json()
     },
     enabled: !!propertyId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5, 
   })
 }
 
@@ -66,7 +66,7 @@ export function useRoomsList(propertyId: string) {
       return response.json()
     },
     enabled: !!propertyId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5, 
   })
 }
 

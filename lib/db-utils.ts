@@ -1,3 +1,4 @@
+import { InvoiceStatus, PaymentMethod, PaymentStatus, TenantStatus } from '@/app/generated/prisma/enums'
 import { prisma } from './prisma'
 import { Decimal } from '@prisma/client/runtime/library'
 
@@ -46,13 +47,12 @@ export async function generateMonthlyInvoices(
         data: {
           propertyId,
           tenantProfileId: lease.tenantProfileId,
-          ownerId: lease.ownerId,
           leaseId: lease.id,
           month,
           year,
           amount: lease.rentAmount,
           dueDate,
-          status: 'PENDING'
+          status: InvoiceStatus.PENDING
         }
       })
 
@@ -61,7 +61,7 @@ export async function generateMonthlyInvoices(
 
     return invoices
   } catch (error) {
-    console.error('[v0] Error generating invoices:', error)
+    console.log('Error generating invoices:', error)
     throw error
   }
 }
@@ -69,9 +69,8 @@ export async function generateMonthlyInvoices(
 export async function recordPayment(
   invoiceId: string,
   tenantProfileId: string,
-  ownerId: string,
   amount: number,
-  method: 'UPI' | 'BANK_TRANSFER' | 'CASH',
+  method: PaymentMethod,
   transactionRef?: string,
   proofUrl?: string
 ) {
@@ -88,10 +87,9 @@ export async function recordPayment(
       data: {
         invoiceId,
         tenantProfileId,
-        ownerId,
         amount: new Decimal(amount),
         method,
-        status: 'SUCCESS',
+        status: PaymentStatus.SUCCESS,
         transactionRef,
         proofUrl
       }
@@ -104,13 +102,13 @@ export async function recordPayment(
 
     const paidAmount = totalPaid._sum.amount || new Decimal(0)
 
-    let newStatus = 'PENDING'
+    let newStatus: InvoiceStatus = InvoiceStatus.PENDING
     if (paidAmount.gte(invoice.amount)) {
-      newStatus = 'PAID'
+      newStatus = InvoiceStatus.PAID
     } else if (paidAmount.gt(0)) {
-      newStatus = 'PAID' 
+      newStatus = InvoiceStatus.PAID
     } else if (new Date() > invoice.dueDate) {
-      newStatus = 'OVERDUE'
+      newStatus = InvoiceStatus.OVERDUE
     }
 
     await prisma.invoice.update({
@@ -120,11 +118,10 @@ export async function recordPayment(
 
     return payment
   } catch (error) {
-    console.error('[v0] Error recording payment:', error)
+    console.log('Error recording payment:', error)
     throw error
   }
 }
-
 
 export async function getPropertyStats(propertyId: string) {
   try {
@@ -136,7 +133,7 @@ export async function getPropertyStats(propertyId: string) {
       unpaidAmount
     ] = await Promise.all([
       prisma.room.count({ where: { propertyId } }),
-      prisma.tenantProfile.count({ where: { propertyId, status: 'ACTIVE' } }),
+      prisma.tenantProfile.count({ where: { propertyId, status: TenantStatus.ACTIVE } }),
       prisma.lease.aggregate({
         where: {
           propertyId,
@@ -149,13 +146,13 @@ export async function getPropertyStats(propertyId: string) {
       prisma.invoice.count({
         where: {
           propertyId,
-          status: { in: ['PENDING', 'OVERDUE'] }
+          status: { in: [InvoiceStatus.PENDING, InvoiceStatus.OVERDUE] }
         }
       }),
       prisma.invoice.aggregate({
         where: {
           propertyId,
-          status: { in: ['PENDING', 'OVERDUE'] }
+          status: { in: [InvoiceStatus.PENDING, InvoiceStatus.OVERDUE] }
         },
         _sum: { amount: true }
       })
@@ -181,14 +178,11 @@ export async function getPropertyStats(propertyId: string) {
       totalCollected: totalPaid._sum.amount || new Decimal(0)
     }
   } catch (error) {
-    console.error('[v0] Error getting property stats:', error)
+    console.log('Error getting property stats:', error)
     throw error
   }
 }
 
-/**
- * Data Validation Utilities
- */
 
 export async function validateTenantEmail(email: string, propertyId: string, excludeTenantProfileId?: string) {
   try {
@@ -203,7 +197,7 @@ export async function validateTenantEmail(email: string, propertyId: string, exc
 
     return !existing
   } catch (error) {
-    console.error('[v0] Error validating tenant email:', error)
+    console.log('Error validating tenant email:', error)
     throw error
   }
 }
@@ -220,7 +214,7 @@ export async function validateRoomNumber(roomNumber: string, propertyId: string,
 
     return !existing
   } catch (error) {
-    console.error('[v0] Error validating room number:', error)
+    console.log('Error validating room number:', error)
     throw error
   }
 }

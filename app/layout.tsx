@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
-import { ClerkProviderWrapper } from '@/components/clerk-provider-wrapper'
 import { QueryProvider } from '@/lib/query-provider'
 import './globals.css'
+import { ClerkProvider } from '@clerk/nextjs'
+import { AuthProvider } from '@/lib/context/auth-context'
 
 export const metadata: Metadata = {
   title: 'Property Manager - Rental Management System',
   description: 'Comprehensive rental property management system',
-  generator: 'v0.app',
   icons: {
     icon: [
       {
@@ -35,11 +35,12 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased">
         <QueryProvider>
-          <ClerkProviderWrapper>
-            {children}
-          </ClerkProviderWrapper>
+          <ClerkProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </ClerkProvider>
         </QueryProvider>
-        {/* {process.env.NODE_ENV === 'production' && <Analytics />} */}
       </body>
     </html>
   )

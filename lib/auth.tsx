@@ -3,7 +3,7 @@ import { prisma } from './prisma'
 
 export async function getAuthUser() {
   const { userId } = await auth()
-  
+
   if (!userId) {
     return null
   }
@@ -18,23 +18,22 @@ export async function getAuthUser() {
       user = await prisma.user.create({
         data: {
           clerkId: userId,
-          email: '', // Will be updated by sync
-          firstName: '',
-          lastName: ''
+          email: '',
+          name: ''
         }
       })
     }
 
     return user
   } catch (error) {
-    console.error('[v0] Error fetching auth user:', error)
+    console.log('Error fetching auth user:', error)
     return null
   }
 }
 
 export async function requireAuth() {
   const { userId } = await auth()
-  
+
   if (!userId) {
     throw new Error('Unauthorized')
   }

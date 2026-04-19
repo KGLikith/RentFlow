@@ -1,6 +1,7 @@
 import { getOrSetCache, invalidateCache } from '@/lib/redis'
 import { CACHE_KEYS, DEFAULT_TTL } from '@/lib/cache-keys'
 import { prisma } from '@/lib/prisma'
+import { InvoiceStatus, TenantStatus } from '@/app/generated/prisma/enums'
 
 export async function getDashboardData(ownerId: string) {
   return getOrSetCache(
@@ -19,10 +20,10 @@ export async function getDashboardData(ownerId: string) {
           where: { property: { ownerId } },
         }),
         prisma.tenantProfile.count({
-          where: { ownerId, status: 'ACTIVE' },
+          where: { ownerId, status: TenantStatus.ACTIVE },
         }),
         prisma.lease.count({
-          where: { property: { ownerId }, status: 'active' },
+          where: { property: { ownerId }, isActive: true },
         }),
         prisma.payment.aggregate({
           where: {
@@ -34,7 +35,7 @@ export async function getDashboardData(ownerId: string) {
           _sum: { amount: true },
         }),
         prisma.invoice.count({
-          where: { property: { ownerId }, status: 'pending' },
+          where: { property: { ownerId }, status: InvoiceStatus.PENDING },
         }),
       ])
 
@@ -139,7 +140,7 @@ export async function getTenantDashboardData(userId: string) {
     CACHE_KEYS.TENANT_DASHBOARD(userId),
     async () => {
       const tenancies = await prisma.tenantProfile.findMany({
-        where: { userId, status: 'ACTIVE', isVerified: true },
+        where: { userId, status: TenantStatus.ACTIVE, isVerified: true },
         include: {
           property: true,
           room: true,
@@ -149,7 +150,7 @@ export async function getTenantDashboardData(userId: string) {
 
       const invoices = await prisma.invoice.findMany({
         where: {
-          tenantId: { in: tenancies.map((t: { id: unknown }) => t.id) },
+          tenantProfileId: { in: tenancies.map((t) => t.id) },
         },
         include: { payments: true },
       })
@@ -157,7 +158,7 @@ export async function getTenantDashboardData(userId: string) {
       const payments = await prisma.payment.findMany({
         where: {
           invoice: {
-            tenantId: { in: tenancies.map((t: { id: unknown }) => t.id) },
+            tenantProfileId: { in: tenancies.map((t) => t.id) },
           },
         },
       })
@@ -167,11 +168,11 @@ export async function getTenantDashboardData(userId: string) {
         invoices,
         payments,
         pendingAmount: invoices
-          .filter((inv: { status: string }) => inv.status === 'pending')
-          .reduce((sum: number, inv: { amount: number }) => sum + inv.amount, 0),
+          .filter((inv) => inv.status === InvoiceStatus.PENDING)
+          .reduce((sum, inv) => sum + Number(inv.amount), 0),
 
         totalPaid: payments.reduce(
-          (sum: number, p: { amount: number }) => sum + p.amount,
+          (sum, p) => sum + Number(p.amount),
           0
         ),
       }
@@ -187,7 +188,7 @@ export async function getInvoicesList(ownerId: string) {
       return prisma.invoice.findMany({
         where: { property: { ownerId } },
         include: {
-          tenantProfile: true,
+          tenant: true,
           property: true,
           payments: true,
         },
@@ -204,7 +205,7 @@ export async function getPaymentsList(ownerId: string) {
       return prisma.payment.findMany({
         where: { invoice: { property: { ownerId } } },
         include: {
-          invoice: { include: { tenantProfile: true } },
+          invoice: { include: { tenant: true } },
         },
       })
     },

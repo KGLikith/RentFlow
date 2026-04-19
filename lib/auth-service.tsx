@@ -10,21 +10,17 @@ export async function getOrCreateUser(clerkId: string, email: string, firstName?
       data: {
         clerkId,
         email,
-        firstName,
-        lastName,
-        phoneNumber,
-        userType: 'owner', 
+        name: `${firstName || ''} ${lastName || ''}`.trim(),
+        phone: phoneNumber,
       },
     })
   } else {
-    // Update user info if changed
     user = await prisma.user.update({
       where: { clerkId },
       data: {
         email,
-        firstName: firstName || user.firstName,
-        lastName: lastName || user.lastName,
-        phoneNumber: phoneNumber || user.phoneNumber,
+        name: `${firstName || ''} ${lastName || ''}`.trim() || user.name,
+        phone: phoneNumber || user.phone,
       },
     })
   }
@@ -46,7 +42,7 @@ export async function findMatchingTenantProfiles(email?: string, phone?: string)
           OR: [
             email ? { email } : undefined,
             phone ? { phone } : undefined,
-          ].filter(Boolean),
+          ].filter((condition): condition is NonNullable<typeof condition> => condition !== undefined)
         },
       ],
     },
@@ -58,8 +54,7 @@ export async function findMatchingTenantProfiles(email?: string, phone?: string)
           owner: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
+              name: true,
             },
           },
         },
@@ -91,8 +86,7 @@ export async function getTenantState(userId: string, email?: string, phone?: str
           owner: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
+              name: true,
             },
           },
         },
@@ -142,7 +136,6 @@ export async function getTenantState(userId: string, email?: string, phone?: str
 }
 
 export async function linkTenantProfile(tenantProfileId: string, userId: string) {
-  // Verify the tenant profile exists and is unlinked
   const profile = await prisma.tenantProfile.findUnique({
     where: { id: tenantProfileId },
   })
@@ -170,8 +163,7 @@ export async function linkTenantProfile(tenantProfileId: string, userId: string)
           owner: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
+              name: true,
             },
           },
         },
@@ -198,7 +190,6 @@ export async function rejectTenantProfile(tenantProfileId: string) {
 }
 
 export async function unlinkTenantProfile(tenantProfileId: string, ownerId: string) {
-  // Verify owner permission
   const profile = await prisma.tenantProfile.findUnique({
     where: { id: tenantProfileId },
   })
@@ -239,6 +230,8 @@ export async function createTenantProfile(
       name: data.name,
       email: data.email,
       phone: data.phone,
+      rentAmount: 0,
+      deposit: 0,
       status: 'ACTIVE',
       isVerified: false,
     },
@@ -250,8 +243,7 @@ export async function createTenantProfile(
           owner: {
             select: {
               id: true,
-              firstName: true,
-              lastName: true,
+              name: true,
             },
           },
         },

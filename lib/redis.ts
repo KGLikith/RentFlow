@@ -13,7 +13,6 @@ export async function getOrSetCache<T>(
   try {
     const cached = await redis.get(key)
     if (cached) {
-      console.log(`[v0] Cache hit: ${key}`)
       return JSON.parse(cached as string) as T
     }
   } catch (error) {
@@ -21,7 +20,6 @@ export async function getOrSetCache<T>(
   }
 
   try {
-    console.log(`[v0] Cache miss: ${key}`)
     const data = await fetchFn()
 
     try {
@@ -30,14 +28,13 @@ export async function getOrSetCache<T>(
         ttlSeconds,
         JSON.stringify(data)
       )
-      console.log(`Cached: ${key} with TTL ${ttlSeconds}s`)
     } catch (error) {
       console.warn(`Redis SET error for key ${key}:`, error)
     }
 
     return data
   } catch (error) {
-    console.error(`Error fetching data for key ${key}:`, error)
+    console.log(`Error fetching data for key ${key}:`, error)
     throw error
   }
 }
@@ -45,10 +42,9 @@ export async function getOrSetCache<T>(
 export async function invalidateCache(keys: string | string[]): Promise<void> {
   try {
     const keyArray = Array.isArray(keys) ? keys : [keys]
-    
+
     for (const key of keyArray) {
       await redis.del(key)
-      console.log(`[v0] Invalidated cache: ${key}`)
     }
   } catch (error) {
     console.warn(`Error invalidating cache:`, error)
@@ -63,7 +59,7 @@ export async function invalidateCachePattern(
     const keys = suffixes.length > 0
       ? suffixes.map(suffix => `${prefix}:${suffix}`)
       : [`${prefix}*`]
-    
+
     await invalidateCache(keys)
   } catch (error) {
     console.warn(`Error invalidating cache pattern ${prefix}:`, error)
@@ -74,6 +70,6 @@ export async function clearAllCache(): Promise<void> {
   try {
     console.warn('Clearing all cache should only be done in development')
   } catch (error) {
-    console.error('Error clearing cache:', error)
+    console.log('Error clearing cache:', error)
   }
 }

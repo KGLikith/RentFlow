@@ -48,7 +48,7 @@ export async function GET(request: Request) {
       },
     })
   } catch (error) {
-    console.error('[AUTH_SYNC]', error)
+    console.log('[AUTH_SYNC]', error)
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
     })

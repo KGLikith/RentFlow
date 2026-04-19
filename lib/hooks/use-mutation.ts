@@ -21,7 +21,7 @@ export function useCreateProperty(ownerId: string) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.propertiesList(ownerId) })
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboardDetail(ownerId) })
-      // Invalidate Redis cache
+
       await invalidateCache([
         `properties:${ownerId}`,
         `dashboard:${ownerId}`,
