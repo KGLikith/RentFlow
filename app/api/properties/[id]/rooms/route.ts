@@ -5,8 +5,9 @@ import { roomSchema } from '@/lib/validations'
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const { userId } = await auth()
 
@@ -24,7 +25,7 @@ export async function GET(
 
     const property = await prisma.property.findFirst({
       where: {
-        id: params.id,
+        id,
         ownerId: user.id,
       }
     })
@@ -34,19 +35,17 @@ export async function GET(
     }
 
     const rooms = await prisma.room.findMany({
-      where: { propertyId: params.id },
+      where: { propertyId: id },
       select: {
         id: true,
         roomNumber: true,
-        roomType: true,
-        currentRent: true,
-        status: true,
+        capacity: true,
       }
     })
 
     return NextResponse.json(rooms)
   } catch (error) {
-    console.error('[v0] Error fetching rooms:', error)
+    console.log('Error fetching rooms:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -56,8 +55,9 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const { userId } = await auth()
 
@@ -73,10 +73,9 @@ export async function POST(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Verify property ownership
     const property = await prisma.property.findFirst({
       where: {
-        id: params.id,
+        id,
         ownerId: user.id,
       }
     })
@@ -87,13 +86,13 @@ export async function POST(
 
     const data = await request.json()
 
-    // Validate input
     const validated = roomSchema.parse(data)
 
     const room = await prisma.room.create({
       data: {
         ...validated,
-        propertyId: params.id,
+        propertyId: id,
+        capacity: 1,
       }
     })
 
@@ -106,7 +105,7 @@ export async function POST(
       )
     }
 
-    console.error('[v0] Error creating room:', error)
+    console.log('Error creating room:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

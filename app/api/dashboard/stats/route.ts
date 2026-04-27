@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
@@ -23,7 +22,7 @@ export async function GET() {
       prisma.property.count({
         where: { ownerId: user.id }
       }),
-      prisma.tenant.count({
+      prisma.tenantProfile.count({
         where: {
           property: {
             ownerId: user.id
@@ -35,15 +34,15 @@ export async function GET() {
           property: {
             ownerId: user.id
           },
-          status: 'pending'
+          status: 'PENDING'
         },
         select: {
-          totalAmount: true
+          amount: true
         }
       })
     ])
 
-    const totalRevenue = invoices.reduce((sum: any, inv: { totalAmount: any }) => sum + inv.totalAmount, 0)
+    const totalRevenue = invoices.reduce((sum, inv) => sum + Number(inv.amount), 0)
 
     return NextResponse.json({
       totalProperties: properties,
@@ -52,7 +51,7 @@ export async function GET() {
       totalRevenue: Math.round(totalRevenue)
     })
   } catch (error) {
-    console.error('[v0] Error fetching stats:', error)
+    console.log('Error fetching stats:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

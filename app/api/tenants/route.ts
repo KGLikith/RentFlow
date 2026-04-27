@@ -18,34 +18,38 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const tenants = await prisma.tenant.findMany({
+    const tenants = await prisma.tenantProfile.findMany({
       where: {
         property: {
-          ownerId: user.id
-        }
+          ownerId: user.id,
+        },
+        status: 'ACTIVE',
       },
       select: {
         id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phoneNumber: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
         property: {
           select: {
-            name: true
-          }
+            name: true,
+          },
         },
         room: {
           select: {
-            roomNumber: true
-          }
-        }
-      }
+            roomNumber: true,
+          },
+        },
+      },
     })
 
     return NextResponse.json(tenants)
   } catch (error) {
-    console.error('[v0] Error fetching tenants:', error)
+    console.log('Error fetching tenants:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

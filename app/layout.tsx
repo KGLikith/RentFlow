@@ -3,6 +3,12 @@ import { QueryProvider } from '@/lib/query-provider'
 import './globals.css'
 import { ClerkProvider } from '@clerk/nextjs'
 import { AuthProvider } from '@/lib/context/auth-context'
+import { Inter } from 'next/font/google'
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+})
 
 export const metadata: Metadata = {
   title: 'Property Manager - Rental Management System',
@@ -32,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body className="font-sans antialiased">
         <QueryProvider>
           <ClerkProvider>

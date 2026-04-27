@@ -14,7 +14,7 @@ export async function getAuthUser() {
     })
 
     if (!user) {
-      const clerkUser = await (await auth()).has({ permission: 'user:read' })
+      await (await auth()).has({ permission: 'user:read' })
       user = await prisma.user.create({
         data: {
           clerkId: userId,

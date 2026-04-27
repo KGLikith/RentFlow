@@ -22,9 +22,7 @@ interface BulkTenantCreationProps {
 
 interface TableRow {
   rowIndex: number
-  name: string
-  phone?: string
-  email?: string
+  email: string
   roomId: string
   rent: number
   deposit: number
@@ -40,8 +38,6 @@ export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreation
   const [tableRows, setTableRows] = useState<TableRow[]>([
     {
       rowIndex: 1,
-      name: '',
-      phone: '',
       email: '',
       roomId: '',
       rent: 0,
@@ -88,20 +84,17 @@ export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreation
       setLoading(false)
     }
   }
-
-  // Table preview
+  
   const handleTablePreview = async () => {
     const preview = tableRows.map((row, i) => ({
       rowIndex: i + 1,
-      name: row.name,
-      phone: row.phone,
       email: row.email,
       roomId: row.roomId,
       rent: row.rent,
       deposit: row.deposit,
-      isValid: !!row.name && !!row.roomId && row.rent >= 0 && row.deposit >= 0,
-      error: !row.name
-        ? 'Name required'
+      isValid: !!row.email && !!row.roomId && row.rent >= 0 && row.deposit >= 0,
+      error: !row.email
+        ? 'Email required'
         : !row.roomId
           ? 'Room required'
           : undefined,
@@ -199,12 +192,11 @@ export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreation
         <TabsTrigger value="table">Spreadsheet</TabsTrigger>
       </TabsList>
 
-      {/* CSV */}
       <TabsContent value="csv" className="space-y-4">
         <div className="space-y-3">
           <div className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 p-2 rounded">
-            <p className="font-mono">name,phone,email,roomId,rent,deposit</p>
-            <p className="font-mono">John Doe,9876543210,john@example.com,101,10000,50000</p>
+            <p className="font-mono">email,roomId,rent,deposit</p>
+            <p className="font-mono">john@example.com,101,10000,50000</p>
           </div>
 
           <textarea
@@ -236,10 +228,7 @@ export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreation
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <p className="font-semibold">{tenant.name}</p>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        {tenant.phone} • {tenant.email}
-                      </p>
+                      <p className="font-semibold">{tenant.email}</p>
                       <p className="text-gray-600 dark:text-gray-400">
                         Room: {tenant.roomId} | Rent: {tenant.rent}
                       </p>
@@ -279,39 +268,8 @@ export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreation
         <div className="space-y-2">
           {tableRows.map((row, index) => (
             <Card key={index} className="p-3 space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-medium">Name *</label>
-                  <Input
-                    type="text"
-                    value={row.name}
-                    onChange={(e) => {
-                      const newRows = [...tableRows]
-                      newRows[index].name = e.target.value
-                      setTableRows(newRows)
-                    }}
-                    placeholder="John Doe"
-                    className="text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium">Phone</label>
-                  <Input
-                    type="tel"
-                    value={row.phone}
-                    onChange={(e) => {
-                      const newRows = [...tableRows]
-                      newRows[index].phone = e.target.value
-                      setTableRows(newRows)
-                    }}
-                    placeholder="9876543210"
-                    className="text-sm"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="text-xs font-medium">Email</label>
+                <label className="text-xs font-medium">Email *</label>
                 <Input
                   type="email"
                   value={row.email}
@@ -395,8 +353,6 @@ export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreation
                 ...tableRows,
                 {
                   rowIndex: tableRows.length + 1,
-                  name: '',
-                  phone: '',
                   email: '',
                   roomId: '',
                   rent: 0,
@@ -431,7 +387,7 @@ export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreation
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <p className="font-semibold">{tenant.name}</p>
+                      <p className="font-semibold">{tenant.email}</p>
                       <p className="text-gray-600 dark:text-gray-400">
                         Room: {tenant.roomId} | Rent: {tenant.rent}
                       </p>

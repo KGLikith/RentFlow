@@ -22,6 +22,8 @@ interface RoomFormProps {
   onSuccess?: () => void
 }
 
+const inputClass = 'h-10 rounded-lg border border-[#e5e7eb] dark:border-gray-800 bg-white dark:bg-gray-950 px-3 text-[14px] font-medium placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-[#f97316]/20 focus-visible:border-[#f97316] w-full transition-all shadow-xs outline-none'
+
 export function RoomForm({ propertyId, onSuccess }: RoomFormProps) {
   const [loading, setLoading] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
@@ -67,142 +69,122 @@ export function RoomForm({ propertyId, onSuccess }: RoomFormProps) {
       const message =
         err instanceof Error ? err.message : 'Something went wrong'
       setServerError(message)
-      console.error('Error:', message)
+      console.log('Error:', message)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 px-6 py-5 max-h-[70vh] overflow-y-auto scrollbar-none">
+
       {serverError && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-sm text-red-600">{serverError}</p>
+        <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600">
+          {serverError}
         </div>
       )}
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Room Number</label>
+      <div className="space-y-1.5">
+        <label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">Room Number</label>
         <Input
           {...register('roomNumber')}
-          placeholder="e.g., 101, A1, Unit 1"
+          placeholder="e.g. 101, A1, Unit 1"
+          className={inputClass}
         />
         {errors.roomNumber && (
-          <p className="text-sm text-red-500">
-            {errors.roomNumber.message}
-          </p>
+          <p className="text-xs text-red-500">{errors.roomNumber.message}</p>
         )}
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Room Type</label>
-        <Select
-          value={roomType}
-          onValueChange={(val) => setValue('roomType', val as any)}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="1BHK">1 BHK</SelectItem>
-            <SelectItem value="2BHK">2 BHK</SelectItem>
-            <SelectItem value="3BHK">3 BHK</SelectItem>
-            <SelectItem value="Studio">Studio</SelectItem>
-            <SelectItem value="Penthouse">Penthouse</SelectItem>
-            <SelectItem value="Other">Other</SelectItem>
-          </SelectContent>
-        </Select>
-        {errors.roomType && (
-          <p className="text-sm text-red-500">
-            {errors.roomType.message}
-          </p>
-        )}
-      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">Room Type</label>
+          <Select
+            value={roomType}
+            onValueChange={(val) => setValue('roomType', val as any)}
+          >
+            <SelectTrigger className={inputClass}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1BHK">1 BHK</SelectItem>
+              <SelectItem value="2BHK">2 BHK</SelectItem>
+              <SelectItem value="3BHK">3 BHK</SelectItem>
+              <SelectItem value="Studio">Studio</SelectItem>
+              <SelectItem value="Penthouse">Penthouse</SelectItem>
+              <SelectItem value="Other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          {errors.roomType && (
+            <p className="text-xs text-red-500">{errors.roomType.message}</p>
+          )}
+        </div>
 
-      {/* RENT */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Monthly Rent</label>
-        <Input
-          type="number"
-          min="0"
-          placeholder="e.g., 10000"
-          {...register('currentRent', { valueAsNumber: true })}
-        />
-        {errors.currentRent && (
-          <p className="text-sm text-red-500">
-            {errors.currentRent.message}
-          </p>
-        )}
-      </div>
-
-      {/* AREA + FLOOR */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">
-            Carpet Area (sqft)
-          </label>
+        <div className="space-y-1.5">
+          <label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">Monthly Rent</label>
           <Input
             type="number"
             min="0"
-            placeholder="e.g., 500"
+            placeholder="e.g. 10000"
+            {...register('currentRent', { valueAsNumber: true })}
+            className={inputClass}
+          />
+          {errors.currentRent && (
+            <p className="text-xs text-red-500">{errors.currentRent.message}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">Carpet Area (sqft)</label>
+          <Input
+            type="number"
+            min="0"
+            placeholder="e.g. 500"
             {...register('carpetArea', { valueAsNumber: true })}
+            className={inputClass}
           />
-          {errors.carpetArea && (
-            <p className="text-sm text-red-500">
-              {errors.carpetArea.message}
-            </p>
-          )}
+          {errors.carpetArea && <p className="text-xs text-red-500">{errors.carpetArea.message}</p>}
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">
-            Floor Number
-          </label>
+        <div className="space-y-1.5">
+          <label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">Floor Number</label>
           <Input
             type="number"
             min="0"
-            placeholder="e.g., 2"
+            placeholder="e.g. 2"
             {...register('floorNumber', { valueAsNumber: true })}
+            className={inputClass}
           />
-          {errors.floorNumber && (
-            <p className="text-sm text-red-500">
-              {errors.floorNumber.message}
-            </p>
-          )}
+          {errors.floorNumber && <p className="text-xs text-red-500">{errors.floorNumber.message}</p>}
         </div>
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Amenities</label>
+      <div className="space-y-1.5">
+        <label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">Amenities</label>
         <Textarea
           {...register('amenities')}
-          placeholder="e.g., AC, WiFi, Parking, Gym"
+          placeholder="e.g. AC, WiFi, Parking, Gym"
+          className="rounded-lg border border-[#e5e7eb] dark:border-gray-800 bg-white dark:bg-gray-950 px-3 py-2.5 text-[14px] font-medium placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-[#f97316]/20 focus-visible:border-[#f97316] w-full transition-all resize-none outline-none min-h-[80px]"
         />
-        {errors.amenities && (
-          <p className="text-sm text-red-500">
-            {errors.amenities.message}
-          </p>
-        )}
+        {errors.amenities && <p className="text-xs text-red-500">{errors.amenities.message}</p>}
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Description</label>
+      <div className="space-y-1.5">
+        <label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">Description</label>
         <Textarea
           {...register('description')}
           placeholder="Additional room details..."
+          className="rounded-lg border border-[#e5e7eb] dark:border-gray-800 bg-white dark:bg-gray-950 px-3 py-2.5 text-[14px] font-medium placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-[#f97316]/20 focus-visible:border-[#f97316] w-full transition-all resize-none outline-none min-h-[80px]"
         />
-        {errors.description && (
-          <p className="text-sm text-red-500">
-            {errors.description.message}
-          </p>
-        )}
+        {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
       </div>
 
       <Button
         type="submit"
         disabled={loading}
-        className="w-full bg-indigo-600 hover:bg-indigo-700"
+        className="w-full bg-[#f97316] hover:bg-[#ea580c] text-white shadow-md font-semibold h-11 text-sm mt-4 rounded-xl"
       >
         {loading ? 'Creating...' : 'Create Room'}
       </Button>

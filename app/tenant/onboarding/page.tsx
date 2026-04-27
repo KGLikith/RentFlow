@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 
-type TenantState = 
+type TenantState =
   | { state: 'LOADING' }
   | { state: 'NOT_ASSIGNED' }
   | { state: 'PENDING_VERIFICATION'; profile: any }
@@ -36,7 +36,7 @@ export default function TenantOnboarding() {
 
       setTenantState(data.tenantState)
     } catch (error) {
-      console.error('[ONBOARDING]', error)
+      console.log('[ONBOARDING]', error)
       setTenantState({ state: 'ERROR', error: 'Failed to load tenant state' })
     }
   }
@@ -62,7 +62,7 @@ export default function TenantOnboarding() {
 
       router.push('/tenant/dashboard')
     } catch (error) {
-      console.error('[CONFIRM]', error)
+      console.log('[CONFIRM]', error)
       alert('Failed to confirm. Please try again.')
     } finally {
       setLinking(false)
@@ -90,7 +90,7 @@ export default function TenantOnboarding() {
 
       setTenantState({ state: 'NOT_ASSIGNED' })
     } catch (error) {
-      console.error('[REJECT]', error)
+      console.log('[REJECT]', error)
       alert('Failed to reject. Please try again.')
     } finally {
       setLinking(false)
@@ -222,11 +222,10 @@ export default function TenantOnboarding() {
               <button
                 key={profile.id}
                 onClick={() => handleSelectProfile(profile.id)}
-                className={`w-full border-2 rounded-lg p-4 text-left transition ${
-                  selectedProfileId === profile.id
+                className={`w-full border-2 rounded-lg p-4 text-left transition ${selectedProfileId === profile.id
                     ? 'border-indigo-600 bg-indigo-50'
                     : 'border-gray-200 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <p className="font-semibold text-gray-900">{profile.property.name}</p>
                 <p className="text-sm text-gray-600">Room {profile.room.roomNumber}</p>

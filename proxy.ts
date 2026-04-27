@@ -2,10 +2,11 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
 const isPublicRoute = createRouteMatcher([
+  '/',
   '/auth/sign-in(.*)',
   '/auth/sign-up(.*)',
   '/auth/forget-password(.*)',
-  '/',
+  '/api/uploadthing(.*)', 
 ])
 
 export default clerkMiddleware(async (auth, req) => {
@@ -13,14 +14,23 @@ export default clerkMiddleware(async (auth, req) => {
 
   const { userId } = await auth()
 
+  if (req.nextUrl.pathname.startsWith('/api')) {
+    if (!userId) {
+      return new Response('Unauthorized', { status: 401 })
+    }
+    return
+  }
+
   if (!userId) {
-    return NextResponse.redirect(new URL('/auth/sign-up', req.url))
+    const signUpUrl = new URL('/auth/sign-up', req.url)
+    signUpUrl.searchParams.set('redirect_url', req.url)
+    return NextResponse.redirect(signUpUrl)
   }
 })
 
 export const config = {
   matcher: [
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/((?!_next|.*\\..*).*)',
     '/(api|trpc)(.*)',
   ],
 }

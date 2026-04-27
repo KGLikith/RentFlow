@@ -28,23 +28,18 @@ export async function getOrCreateUser(clerkId: string, email: string, firstName?
   return user
 }
 
-export async function findMatchingTenantProfiles(email?: string, phone?: string) {
-  if (!email && !phone) {
-    return []
-  }
+/**
+ * Find PENDING invitations matching a user's email.
+ * Used during tenant onboarding to see if any owner has sent them an invite.
+ */
+export async function findMatchingInvitations(email?: string) {
+  if (!email) return []
 
-  const profiles = await prisma.tenantProfile.findMany({
+  return prisma.tenantInvitation.findMany({
     where: {
-      AND: [
-        { status: 'ACTIVE' },
-        { isVerified: false },
-        {
-          OR: [
-            email ? { email } : undefined,
-            phone ? { phone } : undefined,
-          ].filter((condition): condition is NonNullable<typeof condition> => condition !== undefined)
-        },
-      ],
+      email,
+      status: 'PENDING',
+      expiresAt: { gt: new Date() },
     },
     include: {
       property: {
@@ -52,262 +47,154 @@ export async function findMatchingTenantProfiles(email?: string, phone?: string)
           id: true,
           name: true,
           owner: {
-            select: {
-              id: true,
-              name: true,
-            },
+            select: { id: true, name: true },
           },
         },
       },
       room: {
-        select: {
-          id: true,
-          roomNumber: true,
-        },
+        select: { id: true, roomNumber: true },
       },
     },
   })
-
-  return profiles
 }
 
-export async function getTenantState(userId: string, email?: string, phone?: string) {
-  const verifiedProfiles = await prisma.tenantProfile.findMany({
-    where: {
-      userId,
-      isVerified: true,
-      status: 'ACTIVE',
-    },
+/**
+ * Get the current tenant state for a user.
+ * - VERIFIED: they have an active TenantProfile
+ * - PENDING_VERIFICATION: they have one pending invitation
+ * - MULTIPLE_TENANCIES: multiple pending invitations to pick from
+ * - NOT_ASSIGNED: no profile and no invitation found
+ */
+export async function getTenantState(userId: string, email?: string) {
+  const activeProfile = await prisma.tenantProfile.findFirst({
+    where: { userId, status: 'ACTIVE' },
     include: {
       property: {
-        select: {
-          id: true,
-          name: true,
-          owner: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
+        select: { id: true, name: true, owner: { select: { id: true, name: true } } },
       },
       room: {
-        select: {
-          id: true,
-          roomNumber: true,
-        },
+        select: { id: true, roomNumber: true },
       },
     },
   })
 
-  if (verifiedProfiles.length === 1) {
-    return {
-      state: 'VERIFIED',
-      profile: verifiedProfiles[0],
-    }
+  if (activeProfile) {
+    return { state: 'VERIFIED', profile: activeProfile }
   }
 
-  if (verifiedProfiles.length > 1) {
-    return {
-      state: 'MULTIPLE_VERIFIED',
-      profiles: verifiedProfiles,
-    }
+  const pendingInvitations = await findMatchingInvitations(email)
+
+  if (pendingInvitations.length === 0) {
+    return { state: 'NOT_ASSIGNED' }
   }
 
-  const pendingProfiles = await findMatchingTenantProfiles(email, phone)
-
-  if (pendingProfiles.length === 0) {
-    return {
-      state: 'NOT_ASSIGNED',
-    }
+  if (pendingInvitations.length === 1) {
+    return { state: 'PENDING_VERIFICATION', invitation: pendingInvitations[0] }
   }
 
-  if (pendingProfiles.length === 1) {
-    return {
-      state: 'PENDING_VERIFICATION',
-      profile: pendingProfiles[0],
-    }
-  }
-
-  return {
-    state: 'MULTIPLE_TENANCIES',
-    profiles: pendingProfiles,
-  }
+  return { state: 'MULTIPLE_TENANCIES', invitations: pendingInvitations }
 }
 
-export async function linkTenantProfile(tenantProfileId: string, userId: string) {
-  const profile = await prisma.tenantProfile.findUnique({
-    where: { id: tenantProfileId },
+/**
+ * Accept a TenantInvitation: creates the TenantProfile and a Lease, marks invitation as ACCEPTED.
+ */
+export async function acceptTenantInvitation(invitationId: string, userId: string) {
+  const invitation = await prisma.tenantInvitation.findUnique({
+    where: { id: invitationId },
   })
 
-  if (!profile) {
-    throw new Error('Tenant profile not found')
-  }
+  if (!invitation) throw new Error('Invitation not found')
+  if (invitation.status !== 'PENDING') throw new Error('Invitation is no longer pending')
+  if (invitation.expiresAt < new Date()) throw new Error('Invitation has expired')
 
-  if (profile.userId !== null && profile.userId !== userId) {
-    throw new Error('Tenant profile is already linked to another user')
-  }
+  const existingProfile = await prisma.tenantProfile.findFirst({ where: { userId, status: 'ACTIVE' } })
+  if (existingProfile) throw new Error('User already has an active tenancy')
 
-  const updated = await prisma.tenantProfile.update({
-    where: { id: tenantProfileId },
-    data: {
-      userId,
-      isVerified: true,
-      verifiedAt: new Date(),
-    },
-    include: {
-      property: {
-        select: {
-          id: true,
-          name: true,
-          owner: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+
+  const [tenantProfile] = await prisma.$transaction([
+    prisma.tenantProfile.create({
+      data: {
+        userId,
+        name: user?.name || invitation.email.split('@')[0] || 'Tenant',
+        email: invitation.email,
+        isVerified: true,
+        verifiedAt: new Date(),
+        ownerId: invitation.ownerId,
+        propertyId: invitation.propertyId,
+        roomId: invitation.roomId!,
+        rentAmount: invitation.rentAmount,
+        deposit: invitation.deposit,
+        status: 'ACTIVE',
       },
-      room: {
-        select: {
-          id: true,
-          roomNumber: true,
-        },
-      },
-    },
-  })
+    }),
+    prisma.tenantInvitation.update({
+      where: { id: invitationId },
+      data: { status: 'ACCEPTED' },
+    }),
+  ])
 
-  return updated
-}
+  const today = new Date()
+  const leaseEndDate = new Date(today)
+  leaseEndDate.setFullYear(leaseEndDate.getFullYear() + 1)
 
-export async function rejectTenantProfile(tenantProfileId: string) {
-  return await prisma.tenantProfile.update({
-    where: { id: tenantProfileId },
+  await prisma.lease.create({
     data: {
-      rejectedAt: new Date(),
+      tenantProfileId: tenantProfile.id,
+      propertyId: invitation.propertyId,
+      startDate: today,
+      endDate: leaseEndDate,
+      rentAmount: invitation.rentAmount,
+      deposit: invitation.deposit,
+      rentDueDay: 1,
     },
   })
+
+  return tenantProfile
 }
 
-export async function unlinkTenantProfile(tenantProfileId: string, ownerId: string) {
-  const profile = await prisma.tenantProfile.findUnique({
-    where: { id: tenantProfileId },
-  })
-
-  if (!profile) {
-    throw new Error('Tenant profile not found')
-  }
-
-  if (profile.ownerId !== ownerId) {
-    throw new Error('Only the owner can unlink this tenant')
-  }
-
-  return await prisma.tenantProfile.update({
-    where: { id: tenantProfileId },
-    data: {
-      userId: null,
-      isVerified: false,
-      verifiedAt: null,
-    },
-  })
-}
-
-export async function createTenantProfile(
+/**
+ * Send a TenantInvitation from an owner to a tenant email.
+ */
+export async function createTenantInvitation(
   ownerId: string,
   propertyId: string,
   roomId: string,
-  data: {
-    name?: string
-    email?: string
-    phone?: string
-  }
+  email: string,
+  rentAmount: number,
+  deposit: number,
+  daysUntilExpiry = 7
 ) {
-  return await prisma.tenantProfile.create({
+  const expiresAt = new Date()
+  expiresAt.setDate(expiresAt.getDate() + daysUntilExpiry)
+
+  return prisma.tenantInvitation.create({
     data: {
       ownerId,
       propertyId,
       roomId,
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      rentAmount: 0,
-      deposit: 0,
-      status: 'ACTIVE',
-      isVerified: false,
-    },
-    include: {
-      property: {
-        select: {
-          id: true,
-          name: true,
-          owner: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      },
-      room: {
-        select: {
-          id: true,
-          roomNumber: true,
-        },
-      },
+      email,
+      rentAmount,
+      deposit,
+      expiresAt,
+      status: 'PENDING',
     },
   })
 }
 
+/**
+ * Mark a tenant as LEFT (owner only).
+ */
 export async function markTenantAsLeft(tenantProfileId: string, ownerId: string) {
   const profile = await prisma.tenantProfile.findUnique({
     where: { id: tenantProfileId },
   })
 
-  if (!profile) {
-    throw new Error('Tenant profile not found')
-  }
+  if (!profile) throw new Error('Tenant profile not found')
+  if (profile.ownerId !== ownerId) throw new Error('Only the owner can update this tenant')
 
-  if (profile.ownerId !== ownerId) {
-    throw new Error('Only the owner can update this tenant')
-  }
-
-  return await prisma.tenantProfile.update({
+  return prisma.tenantProfile.update({
     where: { id: tenantProfileId },
-    data: {
-      status: 'LEFT',
-      userId: null,
-      isVerified: false,
-    },
-  })
-}
-
-export async function editTenantProfile(
-  tenantProfileId: string,
-  ownerId: string,
-  data: {
-    name?: string
-    email?: string
-    phone?: string
-  }
-) {
-  const profile = await prisma.tenantProfile.findUnique({
-    where: { id: tenantProfileId },
-  })
-
-  if (!profile) {
-    throw new Error('Tenant profile not found')
-  }
-
-  if (profile.ownerId !== ownerId) {
-    throw new Error('Only the owner can edit this tenant')
-  }
-
-  return await prisma.tenantProfile.update({
-    where: { id: tenantProfileId },
-    data: {
-      name: data.name ?? profile.name,
-      email: data.email ?? profile.email,
-      phone: data.phone ?? profile.phone,
-    },
+    data: { status: 'LEFT' },
   })
 }

@@ -22,7 +22,7 @@ export default function SignUpForm() {
     useEffect(() => {
         resetOnboarding()
         resetSignUp()
-    }, [])
+    }, [resetOnboarding, resetSignUp])
 
     const getHeader = () => {
         if (step === 1) {

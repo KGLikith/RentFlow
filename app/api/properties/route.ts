@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 import { propertySchema } from '@/lib/validations'
 
+
 export async function GET() {
   try {
     const { userId } = await auth()
@@ -21,20 +22,12 @@ export async function GET() {
 
     const properties = await prisma.property.findMany({
       where: { ownerId: user.id },
-      select: {
-        id: true,
-        name: true,
-        address: true,
-        city: true,
-        state: true,
-        propertyType: true,
-        totalRooms: true,
-      }
+      orderBy: { createdAt: 'desc' },
     })
 
     return NextResponse.json(properties)
   } catch (error) {
-    console.error('[v0] Error fetching properties:', error)
+    console.log('Error fetching properties:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -59,7 +52,6 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json()
-
     const validated = propertySchema.parse(data)
 
     const property = await prisma.property.create({
@@ -71,14 +63,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(property, { status: 201 })
   } catch (error) {
-    if (error instanceof Error && error.message.includes('ZodError')) {
-      return NextResponse.json(
-        { error: 'Invalid input data' },
-        { status: 400 }
-      )
-    }
-
-    console.error('[v0] Error creating property:', error)
+    console.log('Error creating property:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -21,7 +21,7 @@ export default function TenantDashboard() {
         setProfile(data.tenantState.profile)
       }
     } catch (error) {
-      console.error('[TENANT_DASHBOARD]', error)
+      console.log('[TENANT_DASHBOARD]', error)
     } finally {
       setLoading(false)
     }

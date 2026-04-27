@@ -2,13 +2,13 @@
 
 import {
   SidebarProvider,
-  SidebarTrigger,
 } from '@/components/ui/sidebar'
 
 import { MobileHeader } from '@/components/layout/mobile-header'
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav'
 import { AppSidebar } from '@/components/layout/sidebar'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { ProfileGate } from '@/components/auth/dasboard/profile-gate'
 
 export default function DashboardLayout({
   children,
@@ -19,7 +19,7 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background">
+      <div className="flex h-screen overflow-hidden w-full bg-background">
 
         <AppSidebar />
 
@@ -28,8 +28,11 @@ export default function DashboardLayout({
           {isMobile && <MobileHeader />}
 
           <main className="flex-1 overflow-y-auto scrollbar-none bg-[#f8faf9]">
+
             <div className="p-4 md:p-6 pb-28 md:pb-6">
-              {children}
+              <ProfileGate>
+                {children}
+              </ProfileGate>
             </div>
           </main>
 

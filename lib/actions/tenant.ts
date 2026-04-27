@@ -7,9 +7,7 @@ import { Decimal } from '@prisma/client/runtime/library'
 import { Room, TenantStatus } from '@/app/generated/prisma/client'
 
 export const TenantBulkSchema = z.object({
-  name: z.string().min(1, 'Name required'),
-  phone: z.string().optional(),
-  email: z.string().email('Invalid email').optional(),
+  email: z.string().email('Valid email required'),
   roomId: z.string(),
   rent: z.number().min(0, 'Rent must be positive'),
   deposit: z.number().min(0, 'Deposit must be positive'),
@@ -17,9 +15,7 @@ export const TenantBulkSchema = z.object({
 
 export interface TenantBulkPreview {
   rowIndex: number
-  name: string
-  phone?: string
-  email?: string
+  email: string
   roomId: string
   rent: number
   deposit: number
@@ -45,16 +41,15 @@ export function parseCSVTenants(csvContent: string): TenantBulkPreview[] {
   const dataLines = lines.slice(1)
 
   dataLines.forEach((line, index) => {
-    const [name, phone, email, roomId, rentStr, depositStr] = line
+    const [email, roomId, rentStr, depositStr] = line
       .split(',')
       .map((s) => s.trim())
 
     const rowIndex = index + 2
     const errors: string[] = []
-    const warnings: string[] = []
 
-    if (!name) {
-      errors.push('Missing tenant name')
+    if (!email || !z.string().email().safeParse(email).success) {
+      errors.push('Valid email is required')
     }
 
     if (!roomId) {
@@ -71,21 +66,14 @@ export function parseCSVTenants(csvContent: string): TenantBulkPreview[] {
       errors.push('Invalid deposit amount')
     }
 
-    if (email && !z.email().safeParse(email).success) {
-      warnings.push('Invalid email format')
-    }
-
     previews.push({
       rowIndex,
-      name: name || '',
-      phone: phone || undefined,
-      email: email || undefined,
+      email: email || '',
       roomId: roomId || '',
       rent,
       deposit,
       isValid: errors.length === 0,
       error: errors.join('; '),
-      warnings: warnings.length > 0 ? warnings : undefined,
     })
   })
 
@@ -200,55 +188,50 @@ export async function bulkCreateTenants(
       result.failed++
       result.details.errors.push({
         rowIndex: tenant.rowIndex,
-        name: tenant.name,
+        name: tenant.email,
         error: tenant.error || 'Invalid tenant data',
       })
       continue
     }
 
     try {
-      const tenantProfile = await prisma.tenantProfile.create({
+      if (!tenant.email) {
+        result.failed++
+        result.details.errors.push({
+          rowIndex: tenant.rowIndex,
+          name: tenant.email,
+          error: 'Email is required to send invitation',
+        })
+        continue
+      }
+
+      const expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + 7)
+
+      const invitation = await prisma.tenantInvitation.create({
         data: {
           ownerId: userId,
           propertyId,
           roomId: tenant.roomId,
-          name: tenant.name,
-          phone: tenant.phone,
           email: tenant.email,
           rentAmount: new Decimal(tenant.rent),
           deposit: new Decimal(tenant.deposit),
-          status: 'ACTIVE',
-          isVerified: false,
-        },
-      })
-
-      const today = new Date()
-      const leaseEndDate = new Date(today)
-      leaseEndDate.setFullYear(leaseEndDate.getFullYear() + 1)
-
-      await prisma.lease.create({
-        data: {
-          tenantProfileId: tenantProfile.id,
-          propertyId,
-          startDate: today,
-          endDate: leaseEndDate,
-          rentAmount: new Decimal(tenant.rent),
-          deposit: new Decimal(tenant.deposit),
-          rentDueDay: 1,
+          expiresAt,
+          status: 'PENDING',
         },
       })
 
       result.success++
       result.details.created.push({
-        id: tenantProfile.id,
-        name: tenant.name,
+        id: invitation.id,
+        name: tenant.email,
         roomId: tenant.roomId,
       })
     } catch (error) {
       result.failed++
       result.details.errors.push({
         rowIndex: tenant.rowIndex,
-        name: tenant.name,
+        name: tenant.email,
         error: `Failed to create tenant: ${error instanceof Error ? error.message : 'Unknown error'}`,
       })
     }

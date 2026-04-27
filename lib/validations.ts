@@ -5,11 +5,13 @@ export const propertySchema = z.object({
   address: z.string().min(1, 'Address is required'),
   city: z.string().min(1, 'City is required'),
   state: z.string().min(1, 'State is required'),
-  postalCode: z.string().min(1, 'Postal code is required'),
-  country: z.string().min(1, 'Country is required'),
-  propertyType: z.string().min(1, 'Property type is required'),
-  totalRooms: z.number().int().positive('Total rooms must be positive'),
+  postalCode: z.string().optional(),
+  country: z.string().optional().default('India'),
+  totalRooms: z.number().int().positive('Total rooms must be positive').default(1),
   description: z.string().optional(),
+  imageUrl: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
 })
 
 export type PropertyInput = z.infer<typeof propertySchema>
@@ -28,10 +30,9 @@ export const roomSchema = z.object({
 export type RoomInput = z.infer<typeof roomSchema>
 
 export const tenantSchema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  email: z.string().email('Valid email is required'),
-  phoneNumber: z.string().min(10, 'Valid phone number is required'),
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Valid email is required').optional().or(z.literal('')),
+  phone: z.string().min(10, 'Valid phone number is required').optional().or(z.literal('')),
   aadharNumber: z.string().optional(),
   panNumber: z.string().optional(),
   dateOfBirth: z.date().optional(),
@@ -39,6 +40,9 @@ export const tenantSchema = z.object({
   emergencyPhone: z.string().optional(),
   occupationDetails: z.string().optional(),
   companyName: z.string().optional(),
+}).refine((data) => data.email || data.phone, {
+  message: 'Either email or phone is required',
+  path: ['email'],
 })
 
 export type TenantInput = z.infer<typeof tenantSchema>

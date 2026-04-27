@@ -140,7 +140,7 @@ export async function getTenantDashboardData(userId: string) {
     CACHE_KEYS.TENANT_DASHBOARD(userId),
     async () => {
       const tenancies = await prisma.tenantProfile.findMany({
-        where: { userId, status: TenantStatus.ACTIVE, isVerified: true },
+        where: { userId, status: TenantStatus.ACTIVE },
         include: {
           property: true,
           room: true,

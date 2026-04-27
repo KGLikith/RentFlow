@@ -184,20 +184,26 @@ export async function getPropertyStats(propertyId: string) {
 }
 
 
-export async function validateTenantEmail(email: string, propertyId: string, excludeTenantProfileId?: string) {
+export async function validateTenantContact(email: string | null | undefined, phone: string | null | undefined, propertyId: string, excludeProfileId?: string) {
   try {
+    if (!email && !phone) return false
+
+    const OR = []
+    if (email) OR.push({ email })
+    if (phone) OR.push({ phone })
+
     const existing = await prisma.tenantProfile.findFirst({
       where: {
-        email,
         propertyId,
         status: 'ACTIVE',
-        ...(excludeTenantProfileId && { NOT: { id: excludeTenantProfileId } })
-      }
+        OR,
+        ...(excludeProfileId && { NOT: { id: excludeProfileId } }),
+      },
     })
 
     return !existing
   } catch (error) {
-    console.log('Error validating tenant email:', error)
+    console.log('Error validating tenant contact:', error)
     throw error
   }
 }

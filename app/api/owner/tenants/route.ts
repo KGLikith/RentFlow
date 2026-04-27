@@ -1,57 +1,29 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { auth } from '@clerk/nextjs/server'
-import { createTenantProfile, editTenantProfile, markTenantAsLeft } from '@/lib/auth-service'
+import { createTenantInvitation } from '@/lib/auth-service'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const { userId } = await auth()
 
     if (!userId) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-      })
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    })
+    const user = await prisma.user.findUnique({ where: { clerkId: userId } })
 
     if (!user) {
-      return new Response(JSON.stringify({ error: 'User not found' }), {
-        status: 404,
-      })
+      return new Response(JSON.stringify({ error: 'User not found' }), { status: 404 })
     }
 
     const tenants = await prisma.tenantProfile.findMany({
-      where: {
-        ownerId: user.id,
-      },
+      where: { ownerId: user.id },
       include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-        property: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        room: {
-          select: {
-            id: true,
-            roomNumber: true,
-          },
-        },
+        user: { select: { id: true, email: true, name: true, phone: true } },
+        property: { select: { id: true, name: true } },
+        room: { select: { id: true, roomNumber: true } },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     })
 
     return new Response(JSON.stringify({ tenants }), {
@@ -59,10 +31,8 @@ export async function GET(request: Request) {
       headers: { 'Content-Type': 'application/json' },
     })
   } catch (error) {
-    console.error('[GET_TENANTS]', error)
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-    })
+    console.log('[GET_TENANTS]', error)
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 })
   }
 }
 
@@ -71,60 +41,46 @@ export async function POST(request: Request) {
     const { userId } = await auth()
 
     if (!userId) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-      })
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    })
+    const user = await prisma.user.findUnique({ where: { clerkId: userId } })
 
     if (!user) {
-      return new Response(JSON.stringify({ error: 'User not found' }), {
-        status: 404,
-      })
+      return new Response(JSON.stringify({ error: 'User not found' }), { status: 404 })
     }
 
     const body = await request.json()
-    const { propertyId, roomId, name, email, phone } = body
+    const { propertyId, roomId, email, rentAmount, deposit } = body
 
-    if (!propertyId || !roomId) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
-        status: 400,
-      })
+    if (!propertyId || !roomId || !email) {
+      return new Response(JSON.stringify({ error: 'Missing required fields: propertyId, roomId, email' }), { status: 400 })
     }
 
-    // Verify property belongs to user
-    const property = await prisma.property.findUnique({
-      where: { id: propertyId },
-    })
+    const property = await prisma.property.findUnique({ where: { id: propertyId } })
 
     if (!property || property.ownerId !== user.id) {
-      return new Response(JSON.stringify({ error: 'Property not found or not owned by user' }), {
-        status: 403,
-      })
+      return new Response(JSON.stringify({ error: 'Property not found or not owned by user' }), { status: 403 })
     }
 
-    const profile = await createTenantProfile(user.id, propertyId, roomId, {
-      name,
+    const invitation = await createTenantInvitation(
+      user.id,
+      propertyId,
+      roomId,
       email,
-      phone,
-    })
+      rentAmount ?? 0,
+      deposit ?? 0
+    )
 
-    return new Response(JSON.stringify({ profile }), {
+    return new Response(JSON.stringify({ invitation }), {
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     })
-  } catch (error: any) {
-    console.error('[CREATE_TENANT]', error)
-    if (error.code === 'P2002') {
-      return new Response(JSON.stringify({ error: 'Room already has a tenant assigned' }), {
-        status: 409,
-      })
+  } catch (error) {
+    console.log('[CREATE_TENANT_INVITE]', error)
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      return new Response(JSON.stringify({ error: 'An active invitation already exists for this email and property' }), { status: 409 })
     }
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-    })
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 })
   }
 }

@@ -2,7 +2,7 @@
 
 import { useSignIn } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 interface SignInCredentials {
