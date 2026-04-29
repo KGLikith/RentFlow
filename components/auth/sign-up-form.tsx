@@ -22,7 +22,8 @@ export default function SignUpForm() {
     useEffect(() => {
         resetOnboarding()
         resetSignUp()
-    }, [resetOnboarding, resetSignUp])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     const getHeader = () => {
         if (step === 1) {

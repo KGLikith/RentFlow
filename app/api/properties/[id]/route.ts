@@ -24,9 +24,9 @@ export async function GET(
     }
 
     const property = await prisma.property.findFirst({
-      where: {
-        id,
-        ownerId: user.id,
+      where: { id },
+      include: {
+        owner: true
       }
     })
 
@@ -34,7 +34,28 @@ export async function GET(
       return NextResponse.json({ error: 'Property not found' }, { status: 404 })
     }
 
-    return NextResponse.json(property)
+    // Determine user role
+    let userRole: 'OWNER' | 'TENANT' | 'VIEWER' = 'VIEWER'
+    let tenantRoomId: string | null = null
+
+    if (property.ownerId === user.id) {
+      userRole = 'OWNER'
+    } else {
+      // Check if user is a tenant
+      const tenantProfile = await prisma.tenantProfile.findFirst({
+        where: {
+          propertyId: id,
+          userId: user.id,
+          status: 'ACTIVE'
+        }
+      })
+      if (tenantProfile) {
+        userRole = 'TENANT'
+        tenantRoomId = tenantProfile.roomId
+      }
+    }
+
+    return NextResponse.json({ ...property, userRole, tenantRoomId })
   } catch (error) {
     console.log('Error fetching property:', error)
     return NextResponse.json(

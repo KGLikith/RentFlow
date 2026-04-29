@@ -104,29 +104,37 @@ export default function PropertiesPage() {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.map((property) => (
             <Link key={property.id} href={`/dashboard/properties/${property.id}`}>
-              <Card className="rounded-2xl border-0 shadow-sm overflow-hidden hover:shadow-md transition-shadow active:scale-[0.98] h-full cursor-pointer">
+              <Card className="rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden hover:shadow-md transition-all active:scale-[0.98] h-full cursor-pointer bg-white/50 dark:bg-gray-950/50 backdrop-blur-sm group">
                 {/* Image or map or fallback */}
-                {property.imageUrl ? (
-                  <img
-                    src={property.imageUrl}
-                    alt={property.name}
-                    className="w-full h-28 object-cover"
-                  />
+                {property.imageUrls && property.imageUrls.length > 0 ? (
+                  <div className="relative w-full h-32 overflow-hidden">
+                    <img
+                      src={property.imageUrls[0]}
+                      alt={property.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
                 ) : property.latitude && property.longitude ? (
-                  <img
-                    src={`https://staticmap.openstreetmap.de/staticmap.php?center=${property.latitude},${property.longitude}&zoom=14&size=400x112&markers=${property.latitude},${property.longitude},red-pushpin`}
-                    alt="Location map"
-                    className="w-full h-28 object-cover"
-                  />
+                  <div className="w-full h-32 overflow-hidden bg-muted/20 relative">
+                    <div className="absolute inset-0 bg-black/5 z-10 pointer-events-none mix-blend-multiply" />
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      frameBorder="0"
+                      scrolling="no"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${property.longitude - 0.005},${property.latitude - 0.005},${property.longitude + 0.005},${property.latitude + 0.005}&layer=mapnik&marker=${property.latitude},${property.longitude}`}
+                      className="w-full h-full object-cover grayscale contrast-125 opacity-70 pointer-events-none scale-110 group-hover:scale-100 transition-transform duration-500"
+                    />
+                  </div>
                 ) : (
-                  <div className="w-full h-28 bg-gray-50 dark:bg-gray-900/50 flex flex-col items-center justify-center border-b border-gray-100 dark:border-gray-800">
-                    <div className="h-10 w-10 rounded-full bg-orange-100/50 dark:bg-orange-900/20 flex items-center justify-center mb-1">
-                      <Building2 className="h-5 w-5 text-orange-500/70" />
+                  <div className="w-full h-32 bg-linear-to-br from-orange-50 to-orange-100/50 dark:from-gray-900 dark:to-gray-800 flex flex-col items-center justify-center border-b border-gray-100 dark:border-gray-800 transition-colors group-hover:from-orange-100">
+                    <div className="h-10 w-10 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center mb-1 shadow-sm">
+                      <Building2 className="h-5 w-5 text-[#f97316]/70" />
                     </div>
-                    <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">No photo provided</span>
+                    <span className="text-[10px] font-semibold text-[#f97316]/60 uppercase tracking-widest">No photo</span>
                   </div>
                 )}
 

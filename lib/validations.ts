@@ -8,13 +8,26 @@ export const propertySchema = z.object({
   postalCode: z.string().optional(),
   country: z.string().optional().default('India'),
   totalRooms: z.number().int().positive('Total rooms must be positive').default(1),
+  totalFloors: z.number().int().positive('Total floors must be positive').default(1),
   description: z.string().optional(),
-  imageUrl: z.string().optional(),
+  imageUrls: z.array(z.string()).optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
 })
 
 export type PropertyInput = z.infer<typeof propertySchema>
+
+export const ROOM_TYPES = [
+  'Single Sharing',
+  'Double Sharing',
+  'Triple Sharing',
+  'Quad Sharing',
+  'Private Room',
+  'Dormitory',
+  'Other',
+] as const
+
+export type RoomType = typeof ROOM_TYPES[number]
 
 export const roomSchema = z.object({
   roomNumber: z.string().min(1, 'Room number is required'),
@@ -26,6 +39,7 @@ export const roomSchema = z.object({
   currentRent: z.number().positive('Rent must be positive'),
   description: z.string().optional(),
 })
+
 
 export type RoomInput = z.infer<typeof roomSchema>
 

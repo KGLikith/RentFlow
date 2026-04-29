@@ -77,10 +77,11 @@ model Property {
   postalCode  String?
   country     String? @default("India")
   totalRooms  Int     @default(1)
+  totalFloors Int     @default(1)
   description String? @db.Text
   latitude    Float?
   longitude   Float?
-  imageUrl    String?
+  imageUrls   String[] @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -100,8 +101,14 @@ model Room {
   id         String @id @default(cuid())
   propertyId String
 
-  roomNumber String
-  capacity   Int
+  roomNumber  String
+  capacity    Int    @default(1)
+  roomType    String @default("1BHK")
+  carpetArea  Float?
+  floorNumber Int?
+  amenities   String?
+  currentRent Decimal @default(0) @db.Decimal(10, 2)
+  description String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

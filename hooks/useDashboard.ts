@@ -14,7 +14,7 @@ export interface DashboardProperty {
   description?: string
   latitude?: number
   longitude?: number
-  imageUrl?: string
+  imageUrls?: string[]
 }
 
 export interface DashboardRoom {

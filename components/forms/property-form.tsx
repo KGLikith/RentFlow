@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @next/next/no-img-element */
 'use client'
 
@@ -11,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Loader2, MapPin, Building2, Home, ArrowLeft, ArrowRight } from 'lucide-react'
+import { Loader2, MapPin, Building2, Home, ArrowLeft, ArrowRight, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { UploadButton } from '@/lib/uploadthing'
 import dynamic from 'next/dynamic'
@@ -50,7 +51,6 @@ export function PropertyForm({ onSuccess, initialData, isEdit = false }: Propert
     setValue,
     formState: { errors },
   } = useForm<z.infer<typeof propertySchema>>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(propertySchema as any),
     defaultValues: initialData ?? {
       name: '',
@@ -60,8 +60,9 @@ export function PropertyForm({ onSuccess, initialData, isEdit = false }: Propert
       postalCode: '',
       country: 'India',
       totalRooms: 1,
+      totalFloors: 1,
       description: '',
-      imageUrl: '',
+      imageUrls: [],
     },
   })
 
@@ -100,7 +101,6 @@ export function PropertyForm({ onSuccess, initialData, isEdit = false }: Propert
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onSubmit = async (data: any) => {
     setLoading(true)
     setServerError(null)
@@ -235,19 +235,35 @@ export function PropertyForm({ onSuccess, initialData, isEdit = false }: Propert
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <Label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">
-              <Home className="h-3.5 w-3.5 inline-block mr-1.5 -mt-0.5" />
-              Total Rooms
-            </Label>
-            <Input
-              type="number"
-              min="1"
-              {...register('totalRooms', { valueAsNumber: true })}
-              className={inputClass}
-              defaultValue={1}
-            />
-            {errors.totalRooms && <p className="text-xs text-red-500">{errors.totalRooms.message}</p>}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">
+                <Home className="h-3.5 w-3.5 inline-block mr-1.5 -mt-0.5" />
+                Total Rooms Capacity
+              </Label>
+              <Input
+                type="number"
+                min="1"
+                {...register('totalRooms', { valueAsNumber: true })}
+                className={inputClass}
+                defaultValue={1}
+              />
+              {errors.totalRooms && <p className="text-xs text-red-500">{errors.totalRooms.message}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">
+                Total Floors
+              </Label>
+              <Input
+                type="number"
+                min="1"
+                {...register('totalFloors', { valueAsNumber: true })}
+                className={inputClass}
+                defaultValue={1}
+              />
+              {errors.totalFloors && <p className="text-xs text-red-500">{errors.totalFloors.message}</p>}
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -263,15 +279,17 @@ export function PropertyForm({ onSuccess, initialData, isEdit = false }: Propert
           <div className="space-y-1.5">
             <Label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">Property Photo</Label>
 
-            <div className="flex items-start gap-4 mt-2">
+            <div className="flex flex-col items-start gap-4 mt-2">
               <div className="border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-4 w-full flex flex-col items-center justify-center bg-gray-50/50 dark:bg-gray-900/50">
                 <UploadButton
                   endpoint="propertyImage"
 
 
                   onClientUploadComplete={(res) => {
-                    if (res && res[0]) {
-                      setValue('imageUrl', res[0].url, { shouldValidate: true })
+                    if (res && res.length > 0) {
+                      const currentImages = watch('imageUrls') || []
+                      const newImages = [...currentImages, ...res.map(r => r.url)]
+                      setValue('imageUrls', newImages, { shouldValidate: true })
                       setServerError(null)
                     }
                   }}
@@ -283,9 +301,23 @@ export function PropertyForm({ onSuccess, initialData, isEdit = false }: Propert
                 />
               </div>
 
-              {watch('imageUrl') && (
-                <div className="h-24 w-32 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden shrink-0 shadow-sm">
-                  <img src={watch('imageUrl')} alt="Preview" className="h-full w-full object-cover" />
+              {watch('imageUrls') && watch('imageUrls')!.length > 0 && (
+                <div className="flex flex-wrap gap-2 w-full">
+                  {watch('imageUrls')!.map((url: string, index: number) => (
+                    <div key={index} className="relative h-24 w-32 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden shrink-0 shadow-sm group">
+                      <img src={url} alt={`Preview ${index + 1}`} className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newImages = watch('imageUrls')!.filter((_: any, i: number) => i !== index)
+                          setValue('imageUrls', newImages, { shouldValidate: true })
+                        }}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
