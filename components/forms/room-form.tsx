@@ -21,6 +21,7 @@ import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/di
 import {
   BedDouble, Hash, IndianRupee, Layers3, LayoutGrid,
   AlignLeft, AlertCircle, ChevronRight, SkipForward,
+  CheckCircle2, X
 } from 'lucide-react'
 import { ROOM_TYPES } from '@/lib/validations'
 
@@ -28,6 +29,8 @@ interface RoomFormProps {
   propertyId: string
   totalFloors?: number
   onSuccess?: () => void
+  initialData?: any
+  isEdit?: boolean
 }
 
 const inputClass = 'h-10 rounded-lg border border-[#e5e7eb] dark:border-gray-800 bg-white dark:bg-gray-950 px-3 text-[14px] font-medium placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-[#f97316]/20 focus-visible:border-[#f97316] w-full transition-all shadow-xs outline-none'
@@ -40,6 +43,7 @@ const formSchema = z.object({
   bulkStartNumber: z.number().optional(),
   bulkCount: z.number().optional(),
   roomType: z.string().min(1, 'Room type is required'),
+  capacity: z.number().int().positive('Capacity must be positive').default(1),
   carpetArea: z.number().positive().optional(),
   floorNumber: z.number().int().optional(),
   amenities: z.string().optional(),
@@ -65,20 +69,22 @@ interface ConflictResult {
   skippedRooms: string[]
 }
 
-export function RoomForm({ propertyId, totalFloors = 1, onSuccess }: RoomFormProps) {
+export function RoomForm({ propertyId, totalFloors = 1, onSuccess, initialData, isEdit }: RoomFormProps) {
   const [loading, setLoading] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const [conflict, setConflict] = useState<ConflictResult | null>(null)
+  const [amenityInput, setAmenityInput] = useState('')
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(formSchema as any),
-    defaultValues: {
+    defaultValues: initialData || {
       isBulk: false,
       roomNumber: '',
       bulkPrefix: '',
       bulkStartNumber: 101,
       bulkCount: 5,
       roomType: 'Single Sharing',
+      capacity: 1,
       currentRent: 10000,
       description: '',
     },
@@ -86,6 +92,25 @@ export function RoomForm({ propertyId, totalFloors = 1, onSuccess }: RoomFormPro
 
   const isBulk = watch('isBulk')
   const roomType = watch('roomType')
+  
+  const amenitiesVal = watch('amenities') || ''
+  const amenitiesList = amenitiesVal ? amenitiesVal.split(',').map(a => a.trim()).filter(Boolean) : []
+
+  const handleAddAmenity = (e: React.KeyboardEvent<HTMLInputElement> | { key: string, preventDefault: () => void }) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (amenityInput.trim()) {
+        const newList = [...amenitiesList, amenityInput.trim()]
+        setValue('amenities', newList.join(','))
+        setAmenityInput('')
+      }
+    }
+  }
+
+  const handleRemoveAmenity = (index: number) => {
+    const newList = amenitiesList.filter((_, i) => i !== index)
+    setValue('amenities', newList.join(','))
+  }
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
@@ -101,6 +126,7 @@ export function RoomForm({ propertyId, totalFloors = 1, onSuccess }: RoomFormPro
         payload = Array.from({ length: count }).map((_, i) => ({
           roomNumber: `${prefix}${start + i}`,
           roomType: data.roomType,
+          capacity: data.capacity,
           currentRent: data.currentRent,
           carpetArea: data.carpetArea,
           floorNumber: data.floorNumber,
@@ -111,6 +137,7 @@ export function RoomForm({ propertyId, totalFloors = 1, onSuccess }: RoomFormPro
         payload = {
           roomNumber: data.roomNumber,
           roomType: data.roomType,
+          capacity: data.capacity,
           currentRent: data.currentRent,
           carpetArea: data.carpetArea,
           floorNumber: data.floorNumber,
@@ -119,11 +146,30 @@ export function RoomForm({ propertyId, totalFloors = 1, onSuccess }: RoomFormPro
         }
       }
 
-      const res = await fetch(`/api/properties/${propertyId}/rooms`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      let res;
+      if (isEdit && initialData?.id) {
+        payload = {
+          roomNumber: data.roomNumber,
+          roomType: data.roomType,
+          capacity: data.capacity,
+          currentRent: data.currentRent,
+          carpetArea: data.carpetArea,
+          floorNumber: data.floorNumber,
+          amenities: data.amenities,
+          description: data.description,
+        }
+        res = await fetch(`/api/properties/${propertyId}/rooms/${initialData.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      } else {
+        res = await fetch(`/api/properties/${propertyId}/rooms`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      }
 
       const resData = await res.json()
       if (!res.ok) throw new Error(resData.error || 'Failed to create room(s)')
@@ -202,19 +248,21 @@ export function RoomForm({ propertyId, totalFloors = 1, onSuccess }: RoomFormPro
       {/* Header */}
       <DialogHeader className="px-6 pb-4 pt-5">
         {/* Mode toggle */}
-        <div className="flex items-center gap-2 p-1 bg-[#fff7ed] dark:bg-orange-950/30 border border-[#f97316]/20 rounded-full w-fit mb-3">
-          <button type="button" onClick={() => setValue('isBulk', false)}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${!isBulk ? 'bg-[#f97316] text-white shadow-sm' : 'text-[#f97316]/70 hover:text-[#f97316]'}`}>
-            Single Room
-          </button>
-          <button type="button" onClick={() => setValue('isBulk', true)}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${isBulk ? 'bg-[#f97316] text-white shadow-sm' : 'text-[#f97316]/70 hover:text-[#f97316]'}`}>
-            <Layers3 className="h-3 w-3" />
-            Bulk Create
-          </button>
-        </div>
+        {!isEdit && (
+          <div className="flex items-center gap-2 p-1 bg-[#fff7ed] dark:bg-orange-950/30 border border-[#f97316]/20 rounded-full w-fit mb-3">
+            <button type="button" onClick={() => setValue('isBulk', false)}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${!isBulk ? 'bg-[#f97316] text-white shadow-sm' : 'text-[#f97316]/70 hover:text-[#f97316]'}`}>
+              Single Room
+            </button>
+            <button type="button" onClick={() => setValue('isBulk', true)}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${isBulk ? 'bg-[#f97316] text-white shadow-sm' : 'text-[#f97316]/70 hover:text-[#f97316]'}`}>
+              <Layers3 className="h-3 w-3" />
+              Bulk Create
+            </button>
+          </div>
+        )}
         <DialogTitle className="text-[20px] font-bold text-gray-900 dark:text-white tracking-tight">
-          {isBulk ? 'Bulk Room Creation' : 'Add New Room'}
+          {isEdit ? 'Edit Room' : isBulk ? 'Bulk Room Creation' : 'Add New Room'}
         </DialogTitle>
         <DialogDescription className="text-[13px] text-[#6b7280] dark:text-gray-400">
           {isBulk ? 'Create multiple rooms at once — existing rooms are automatically skipped.' : 'Fill in the details for this room.'}
@@ -270,10 +318,17 @@ export function RoomForm({ propertyId, totalFloors = 1, onSuccess }: RoomFormPro
         )}
 
         {/* Shared fields */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="space-y-1.5">
             <Label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">Room Type</Label>
-            <Select value={roomType} onValueChange={(val) => setValue('roomType', val)}>
+            <Select value={roomType} onValueChange={(val) => {
+              setValue('roomType', val)
+              // Auto-set capacity based on type if possible
+              if (val.includes('Single')) setValue('capacity', 1)
+              if (val.includes('Double')) setValue('capacity', 2)
+              if (val.includes('Triple')) setValue('capacity', 3)
+              if (val.includes('Quad')) setValue('capacity', 4)
+            }}>
               <SelectTrigger className={inputClass}>
                 <SelectValue />
               </SelectTrigger>
@@ -284,6 +339,12 @@ export function RoomForm({ propertyId, totalFloors = 1, onSuccess }: RoomFormPro
               </SelectContent>
             </Select>
             {errors.roomType && <p className="text-xs text-red-500">{errors.roomType.message}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">Capacity</Label>
+            <Input type="number" min="1" max="10" placeholder="e.g. 2" {...register('capacity', { valueAsNumber: true })} className={inputClass} />
+            {errors.capacity && <p className="text-xs text-red-500">{errors.capacity.message}</p>}
           </div>
 
           <div className="space-y-1.5">
@@ -321,12 +382,49 @@ export function RoomForm({ propertyId, totalFloors = 1, onSuccess }: RoomFormPro
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">
-            <LayoutGrid className="h-3.5 w-3.5 inline-block mr-1.5 -mt-0.5" />
-            Amenities
+        <div className="space-y-2">
+          <Label className="text-[13px] font-medium text-gray-700 dark:text-gray-300 flex items-center justify-between">
+            <span>
+              <LayoutGrid className="h-3.5 w-3.5 inline-block mr-1.5 -mt-0.5" />
+              Amenities
+            </span>
           </Label>
-          <Textarea {...register('amenities')} placeholder="e.g. AC, WiFi, Attached Bath" className={textareaClass} />
+          <div className="flex gap-2">
+            <Input
+              value={amenityInput}
+              onChange={(e) => setAmenityInput(e.target.value)}
+              onKeyDown={handleAddAmenity}
+              placeholder="e.g. AC, WiFi (Press Enter to add)"
+              className={inputClass}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleAddAmenity({ key: 'Enter', preventDefault: () => {} })}
+              className="h-10 rounded-lg px-4"
+            >
+              Add
+            </Button>
+          </div>
+          
+          {amenitiesList.length > 0 && (
+            <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
+              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Amenities Provided</p>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {amenitiesList.map((am, i) => (
+                  <li key={i} className="flex items-start justify-between bg-white dark:bg-gray-950 p-2 rounded-lg border border-gray-100 dark:border-gray-800 shadow-xs">
+                    <span className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300 leading-tight">
+                      <CheckCircle2 className="h-4 w-4 text-[#f97316] shrink-0 mt-0.5" />
+                      {am}
+                    </span>
+                    <button type="button" onClick={() => handleRemoveAmenity(i)} className="text-gray-400 hover:text-red-500 p-1 shrink-0">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -345,7 +443,7 @@ export function RoomForm({ propertyId, totalFloors = 1, onSuccess }: RoomFormPro
           disabled={loading}
           className="w-full bg-[#f97316] hover:bg-[#ea580c] text-white shadow-md font-semibold h-11 text-sm rounded-full transition-all"
         >
-          {loading ? 'Creating…' : isBulk ? `Create ${bulkCount} Rooms` : 'Create Room'}
+          {loading ? (isEdit ? 'Saving…' : 'Creating…') : isEdit ? 'Save Changes' : isBulk ? `Create ${bulkCount} Rooms` : 'Create Room'}
         </Button>
       </div>
     </form>

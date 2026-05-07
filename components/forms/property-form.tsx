@@ -62,6 +62,7 @@ export function PropertyForm({ onSuccess, initialData, isEdit = false }: Propert
       totalRooms: 1,
       totalFloors: 1,
       description: '',
+      amenities: '',
       imageUrls: [],
     },
   })
@@ -264,6 +265,15 @@ export function PropertyForm({ onSuccess, initialData, isEdit = false }: Propert
               />
               {errors.totalFloors && <p className="text-xs text-red-500">{errors.totalFloors.message}</p>}
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">Amenities</Label>
+            <Input
+              {...register('amenities')}
+              placeholder="e.g. WiFi, AC, Laundry, Meals Included"
+              className={inputClass}
+            />
           </div>
 
           <div className="space-y-1.5">

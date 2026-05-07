@@ -14,10 +14,11 @@ import type { RoomItem } from '@/components/property/floor-room-view'
 import { useParams, useRouter } from 'next/navigation'
 import {
   MapPin, BedDouble, ArrowLeft, Plus, Navigation, Edit2, Building2,
-  Hash, Globe, FileText, ChevronLeft, ChevronRight, Layers, User, Mail, Phone, CreditCard
+  Hash, Globe, FileText, ChevronLeft, ChevronRight, Layers, User, Mail, Phone, CreditCard, LayoutGrid
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useQueryClient } from '@tanstack/react-query'
+import { AmenitiesList } from '@/components/property/amenities-list'
 import type { ComponentType } from 'react'
 
 const LeafletModal = dynamic(() => import('@/components/ui/leaflet-modal'), { ssr: false }) as ComponentType<{
@@ -36,6 +37,7 @@ interface Property {
   totalRooms: number
   totalFloors?: number
   description?: string
+  amenities?: string | null
   latitude?: number
   longitude?: number
   imageUrls?: string[]
@@ -249,16 +251,30 @@ export default function PropertyDetailPage() {
             )}
           </div>
 
-          {/* Description Section */}
-          {property.description && (
-            <section className="bg-white dark:bg-gray-950/50 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-gray-800/60 shadow-sm">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-                <FileText className="h-5 w-5 text-[#f97316]" />
-                About this property
-              </h2>
-              <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                {property.description}
-              </p>
+          {/* Amenities & Description Section */}
+          {(property.amenities || property.description) && (
+            <section className="bg-white dark:bg-gray-950/50 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-gray-800/60 shadow-sm space-y-6">
+              {property.amenities && (
+                <div>
+                  <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+                    <LayoutGrid className="h-5 w-5 text-[#f97316]" />
+                    Property Amenities
+                  </h2>
+                  <AmenitiesList amenitiesStr={property.amenities} />
+                </div>
+              )}
+              
+              {property.description && (
+                <div className={property.amenities ? 'pt-6 border-t border-gray-100 dark:border-gray-800' : ''}>
+                  <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-[#f97316]" />
+                    About this property
+                  </h2>
+                  <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                    {property.description}
+                  </p>
+                </div>
+              )}
             </section>
           )}
 
@@ -449,6 +465,7 @@ export default function PropertyDetailPage() {
               country: property.country ?? 'India',
               latitude: property.latitude ?? undefined,
               longitude: property.longitude ?? undefined,
+              amenities: property.amenities ?? '',
               totalFloors: property.totalFloors ?? 1,
               imageUrls: property.imageUrls ?? [],
             }}

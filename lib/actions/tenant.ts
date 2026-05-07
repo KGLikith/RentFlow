@@ -6,35 +6,9 @@ import { z } from 'zod'
 import { Decimal } from '@prisma/client/runtime/library'
 import { Room, TenantStatus } from '@/app/generated/prisma/client'
 
-export const TenantBulkSchema = z.object({
-  email: z.string().email('Valid email required'),
-  roomId: z.string(),
-  rent: z.number().min(0, 'Rent must be positive'),
-  deposit: z.number().min(0, 'Deposit must be positive'),
-})
+import { TenantBulkPreview, TenantBulkResult } from './schema'
 
-export interface TenantBulkPreview {
-  rowIndex: number
-  email: string
-  roomId: string
-  rent: number
-  deposit: number
-  isValid: boolean
-  error?: string
-  warnings?: string[]
-}
-
-export interface TenantBulkResult {
-  total: number
-  success: number
-  failed: number
-  details: {
-    created: Array<{ id: string; name: string; roomId: string }>
-    errors: Array<{ rowIndex: number; name: string; error: string }>
-  }
-}
-
-export function parseCSVTenants(csvContent: string): TenantBulkPreview[] {
+export async function parseCSVTenants(csvContent: string): Promise<TenantBulkPreview[]> {
   const lines = csvContent.trim().split('\n')
   const previews: TenantBulkPreview[] = []
 
@@ -87,10 +61,14 @@ export async function validateTenantBulk(
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
+  // Resolve the internal DB user id (Property.ownerId is NOT the Clerk userId)
+  const user = await prisma.user.findUnique({ where: { clerkId: userId } })
+  if (!user) throw new Error('User not found')
+
   const property = await prisma.property.findFirst({
     where: {
       id: propertyId,
-      ownerId: userId,
+      ownerId: user.id,
     },
     include: {
       rooms: true,
@@ -162,11 +140,15 @@ export async function bulkCreateTenants(
   const { userId } = await auth()
   if (!userId) throw new Error('Unauthorized')
 
+  const user = await prisma.user.findUnique({ where: { clerkId: userId } })
+  if (!user) throw new Error('User not found')
+
   const property = await prisma.property.findFirst({
     where: {
       id: propertyId,
-      ownerId: userId,
+      ownerId: user.id,
     },
+    include: { rooms: true }
   })
 
   if (!property) throw new Error('Property not found')
@@ -188,7 +170,7 @@ export async function bulkCreateTenants(
       result.failed++
       result.details.errors.push({
         rowIndex: tenant.rowIndex,
-        name: tenant.email,
+        email: tenant.email,
         error: tenant.error || 'Invalid tenant data',
       })
       continue
@@ -199,39 +181,67 @@ export async function bulkCreateTenants(
         result.failed++
         result.details.errors.push({
           rowIndex: tenant.rowIndex,
-          name: tenant.email,
+          email: tenant.email,
           error: 'Email is required to send invitation',
         })
         continue
       }
 
-      const expiresAt = new Date()
-      expiresAt.setDate(expiresAt.getDate() + 7)
+      // Block owners from being added as tenants
+      const emailUser = await prisma.user.findUnique({
+        where: { email: tenant.email },
+        select: { role: true },
+      })
+      if (emailUser?.role === 'OWNER') {
+        result.failed++
+        result.details.errors.push({
+          rowIndex: tenant.rowIndex,
+          email: tenant.email,
+          error: `${tenant.email} is registered as a property owner and cannot be added as a tenant.`,
+        })
+        continue
+      }
 
-      const invitation = await prisma.tenantInvitation.create({
+      const tenantProfile = await prisma.tenantProfile.create({
         data: {
-          ownerId: userId,
+          ownerId: user.id,
           propertyId,
           roomId: tenant.roomId,
+          name: tenant.email.split('@')[0],
           email: tenant.email,
-          rentAmount: new Decimal(tenant.rent),
-          deposit: new Decimal(tenant.deposit),
-          expiresAt,
-          status: 'PENDING',
+          status: 'ACTIVE',
+          isVerified: false,
+          invitedAt: new Date(),
+          leases: {
+            create: {
+              propertyId,
+              startDate: new Date(),
+              rentAmount: new Decimal(tenant.rent),
+              deposit: new Decimal(tenant.deposit),
+              rentDueDay: 1,
+              isActive: true,
+            }
+          }
         },
       })
 
+      const room = property.rooms.find(r => r.id === tenant.roomId)
+      
       result.success++
       result.details.created.push({
-        id: invitation.id,
-        name: tenant.email,
+        id: tenantProfile.id,
+        email: tenant.email,
         roomId: tenant.roomId,
+        roomNumber: room?.roomNumber || 'Unknown',
+        propertyName: property.name,
+        rentAmount: tenant.rent,
+        deposit: tenant.deposit,
       })
     } catch (error) {
       result.failed++
       result.details.errors.push({
         rowIndex: tenant.rowIndex,
-        name: tenant.email,
+        email: tenant.email,
         error: `Failed to create tenant: ${error instanceof Error ? error.message : 'Unknown error'}`,
       })
     }

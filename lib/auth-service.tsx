@@ -123,8 +123,6 @@ export async function acceptTenantInvitation(invitationId: string, userId: strin
         ownerId: invitation.ownerId,
         propertyId: invitation.propertyId,
         roomId: invitation.roomId!,
-        rentAmount: invitation.rentAmount,
-        deposit: invitation.deposit,
         status: 'ACTIVE',
       },
     }),

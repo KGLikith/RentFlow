@@ -25,13 +25,26 @@ function isPrismaFieldError(e: any): boolean {
   )
 }
 
+/** Map room type label → expected tenant capacity */
+export function roomTypeToCapacity(roomType: string): number {
+  const t = roomType.trim().toLowerCase()
+  if (t.includes('single'))  return 1
+  if (t.includes('double'))  return 2
+  if (t.includes('triple'))  return 3
+  if (t.includes('quad'))    return 4
+  if (t.includes('dormitory')) return 8
+  if (t.includes('private')) return 1
+  return 1 // fallback
+}
+
 /**
  * Map a validated room schema object to the exact set of Prisma Room fields.
  * Never spread unknown keys so future schema changes can't cause 500s.
  */
 function toRoomData(r: ReturnType<typeof roomSchema.parse>, propertyId: string) {
-  const capacity = 1 // always 1 per tenant model; add a form field later if needed
-  if (capacity < 1) throw new Error('Capacity must be at least 1.')
+  const capacity = r.capacity && r.capacity > 1
+    ? r.capacity
+    : roomTypeToCapacity(r.roomType)
 
   return {
     propertyId,
@@ -63,7 +76,7 @@ export async function GET(
     const property = await prisma.property.findFirst({ where: { id } })
     if (!property) return NextResponse.json({ error: 'Property not found' }, { status: 404 })
 
-    let isOwner = property.ownerId === user.id
+    const isOwner = property.ownerId === user.id
     let tenantProfile = null
 
     if (!isOwner) {

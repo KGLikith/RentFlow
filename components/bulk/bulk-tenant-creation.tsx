@@ -1,50 +1,39 @@
 'use client'
 
 import { useState } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import {
   parseCSVTenants,
   validateTenantBulk,
   bulkCreateTenants,
-  type TenantBulkPreview,
-  type TenantBulkResult,
 } from '@/lib/actions/tenant'
+import { type TenantBulkPreview, type TenantBulkResult } from '@/lib/actions/schema'
 import { toast } from 'sonner'
+import { Download, FileSpreadsheet } from 'lucide-react'
+import { generateBulkLeasesZip } from '@/lib/pdf-generator'
 
 interface BulkTenantCreationProps {
   propertyId: string
   onSuccess?: (result: TenantBulkResult) => void
 }
 
-interface TableRow {
-  rowIndex: number
-  email: string
-  roomId: string
-  rent: number
-  deposit: number
-}
+// interface TableRow {
+//   rowIndex: number
+//   email: string
+//   roomId: string
+//   rent: number
+//   deposit: number
+// }
 
 export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreationProps) {
-  const [activeTab, setActiveTab] = useState('csv')
   const [loading, setLoading] = useState(false)
 
   const [csvContent, setCSVContent] = useState('')
   const [csvPreview, setCSVPreview] = useState<TenantBulkPreview[]>([])
 
-  const [tableRows, setTableRows] = useState<TableRow[]>([
-    {
-      rowIndex: 1,
-      email: '',
-      roomId: '',
-      rent: 0,
-      deposit: 0,
-    },
-  ])
-  const [tablePreview, setTablePreview] = useState<TenantBulkPreview[]>([])
+
 
   const [result, setResult] = useState<TenantBulkResult | null>(null)
 
@@ -54,7 +43,7 @@ export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreation
       return
     }
 
-    const preview = parseCSVTenants(csvContent)
+    const preview = await parseCSVTenants(csvContent)
     const validated = await validateTenantBulk(propertyId, preview)
     setCSVPreview(validated)
   }
@@ -84,51 +73,7 @@ export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreation
       setLoading(false)
     }
   }
-  
-  const handleTablePreview = async () => {
-    const preview = tableRows.map((row, i) => ({
-      rowIndex: i + 1,
-      email: row.email,
-      roomId: row.roomId,
-      rent: row.rent,
-      deposit: row.deposit,
-      isValid: !!row.email && !!row.roomId && row.rent >= 0 && row.deposit >= 0,
-      error: !row.email
-        ? 'Email required'
-        : !row.roomId
-          ? 'Room required'
-          : undefined,
-    }))
 
-    const validated = await validateTenantBulk(propertyId, preview)
-    setTablePreview(validated)
-  }
-
-  const handleTableSubmit = async () => {
-    if (!tablePreview.length) {
-      toast.error('Generate preview first')
-      return
-    }
-
-    setLoading(true)
-    try {
-      const result = await bulkCreateTenants(propertyId, tablePreview)
-      setResult(result)
-      toast.success('Tenants created', {
-        description: `${result.success} tenants added, ${result.failed} failed`,
-      })
-
-      if (onSuccess) {
-        onSuccess(result)
-      }
-    } catch (error) {
-      toast.error('Error', {
-        description: error instanceof Error ? error.message : 'Failed to create tenants',
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
 
   if (result) {
     return (
@@ -140,6 +85,26 @@ export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreation
           <p className="text-sm text-emerald-700 dark:text-emerald-300">
             {result.success} tenants added
           </p>
+        </div>
+
+        <div className="flex justify-center mt-4">
+          <Button
+            variant="default"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full"
+            onClick={() => {
+              const leasesToGenerate = result.details.created.map(c => ({
+                email: c.email,
+                roomNumber: c.roomNumber || 'N/A',
+                rentAmount: c.rentAmount || 0,
+                deposit: c.deposit || 0,
+                propertyName: c.propertyName || 'Property',
+              }))
+              generateBulkLeasesZip(leasesToGenerate)
+            }}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Download Generated Leases (ZIP)
+          </Button>
         </div>
 
         <div className="grid grid-cols-3 gap-2 text-center">
@@ -175,7 +140,6 @@ export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreation
           onClick={() => {
             setResult(null)
             setCSVPreview([])
-            setTablePreview([])
           }}
           className="w-full"
         >
@@ -186,27 +150,50 @@ export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreation
   }
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab}>
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="csv">CSV Upload</TabsTrigger>
-        <TabsTrigger value="table">Spreadsheet</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="csv" className="space-y-4">
+    <div className="space-y-4">
         <div className="space-y-3">
-          <div className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 p-2 rounded">
-            <p className="font-mono">email,roomId,rent,deposit</p>
-            <p className="font-mono">john@example.com,101,10000,50000</p>
+          <div className="bg-emerald-50 dark:bg-emerald-950/30 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50 mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold text-emerald-900 dark:text-emerald-100 flex items-center gap-2">
+                <FileSpreadsheet className="h-4 w-4" />
+                CSV Format Instructions
+              </h4>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 text-xs bg-white dark:bg-gray-950 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-700"
+                onClick={() => {
+                  const csvContent = "email,roomId,rent,deposit\nexample@domain.com,cm0mxxxx0000xxxx,10000,50000"
+                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+                  const link = document.createElement('a')
+                  link.href = URL.createObjectURL(blob)
+                  link.download = 'tenant_bulk_upload_template.csv'
+                  link.click()
+                }}
+              >
+                <Download className="h-3 w-3 mr-1.5" />
+                Download Template
+              </Button>
+            </div>
+            <p className="text-xs text-emerald-700 dark:text-emerald-400 mb-2">
+              Your CSV must include the following columns exactly as named:
+            </p>
+            <ul className="text-[11px] space-y-1 text-emerald-700/80 dark:text-emerald-400/80 list-disc list-inside ml-1">
+              <li><strong>email</strong>: The tenant&apos;s email address (must be valid)</li>
+              <li><strong>roomId</strong>: The system ID of the room (you can copy this from the room URL)</li>
+              <li><strong>rent</strong>: Monthly rent amount (numbers only)</li>
+              <li><strong>deposit</strong>: Security deposit amount (numbers only)</li>
+            </ul>
           </div>
 
           <textarea
             value={csvContent}
             onChange={(e) => setCSVContent(e.target.value)}
-            placeholder="Paste CSV here..."
-            className="w-full h-32 p-2 border rounded font-mono text-sm resize-none"
+            placeholder="Paste your CSV data here..."
+            className="w-full h-32 p-3 border border-gray-200 dark:border-gray-800 rounded-xl font-mono text-[13px] resize-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all dark:bg-gray-950"
           />
 
-          <Button onClick={handleCSVPreview} variant="outline" className="w-full">
+          <Button onClick={handleCSVPreview} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-full">
             Preview CSV
           </Button>
         </div>
@@ -262,159 +249,6 @@ export function BulkTenantCreation({ propertyId, onSuccess }: BulkTenantCreation
             </Button>
           </Card>
         )}
-      </TabsContent>
-
-      <TabsContent value="table" className="space-y-4">
-        <div className="space-y-2">
-          {tableRows.map((row, index) => (
-            <Card key={index} className="p-3 space-y-2">
-              <div>
-                <label className="text-xs font-medium">Email *</label>
-                <Input
-                  type="email"
-                  value={row.email}
-                  onChange={(e) => {
-                    const newRows = [...tableRows]
-                    newRows[index].email = e.target.value
-                    setTableRows(newRows)
-                  }}
-                  placeholder="john@example.com"
-                  className="text-sm"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-medium">Room ID *</label>
-                  <Input
-                    type="text"
-                    value={row.roomId}
-                    onChange={(e) => {
-                      const newRows = [...tableRows]
-                      newRows[index].roomId = e.target.value
-                      setTableRows(newRows)
-                    }}
-                    placeholder="101"
-                    className="text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium">Rent</label>
-                  <Input
-                    type="number"
-                    value={row.rent || ''}
-                    onChange={(e) => {
-                      const newRows = [...tableRows]
-                      newRows[index].rent = parseInt(e.target.value, 10) || 0
-                      setTableRows(newRows)
-                    }}
-                    placeholder="10000"
-                    className="text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium">Deposit</label>
-                <Input
-                  type="number"
-                  value={row.deposit || ''}
-                  onChange={(e) => {
-                    const newRows = [...tableRows]
-                    newRows[index].deposit = parseInt(e.target.value, 10) || 0
-                    setTableRows(newRows)
-                  }}
-                  placeholder="50000"
-                  className="text-sm"
-                />
-              </div>
-
-              {tableRows.length > 1 && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    setTableRows(tableRows.filter((_, i) => i !== index))
-                  }}
-                  className="w-full text-xs"
-                >
-                  Remove
-                </Button>
-              )}
-            </Card>
-          ))}
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setTableRows([
-                ...tableRows,
-                {
-                  rowIndex: tableRows.length + 1,
-                  email: '',
-                  roomId: '',
-                  rent: 0,
-                  deposit: 0,
-                },
-              ])
-            }}
-            className="w-full"
-          >
-            + Add Row
-          </Button>
-
-          <Button onClick={handleTablePreview} variant="outline" className="w-full">
-            Preview
-          </Button>
-        </div>
-
-        {tablePreview.length > 0 && (
-          <Card className="p-3 border-gray-200 space-y-2">
-            <p className="text-xs font-semibold">
-              Preview: {tablePreview.length} tenants
-            </p>
-            <div className="space-y-1 max-h-48 overflow-y-auto">
-              {tablePreview.map((tenant, i) => (
-                <div
-                  key={i}
-                  className={`p-2 text-xs rounded border ${
-                    tenant.isValid
-                      ? 'bg-emerald-50 dark:bg-emerald-950 border-emerald-200'
-                      : 'bg-red-50 dark:bg-red-950 border-red-200'
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <p className="font-semibold">{tenant.email}</p>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Room: {tenant.roomId} | Rent: {tenant.rent}
-                      </p>
-                    </div>
-                    {tenant.isValid ? (
-                      <span className="text-emerald-600 dark:text-emerald-400 text-lg">✓</span>
-                    ) : (
-                      <span className="text-red-600 dark:text-red-400 text-lg">✗</span>
-                    )}
-                  </div>
-                  {tenant.error && (
-                    <p className="text-red-600 dark:text-red-400 mt-1">{tenant.error}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-            <Button
-              onClick={handleTableSubmit}
-              disabled={loading || tablePreview.some((p) => !p.isValid)}
-              className="w-full bg-emerald-600 hover:bg-emerald-700"
-            >
-              {loading && <Spinner className="w-4 h-4 mr-2" />}
-              Add Tenants
-            </Button>
-          </Card>
-        )}
-      </TabsContent>
-    </Tabs>
+    </div>
   )
 }

@@ -13,6 +13,7 @@ export const propertySchema = z.object({
   imageUrls: z.array(z.string()).optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
+  amenities: z.string().optional(),
 })
 
 export type PropertyInput = z.infer<typeof propertySchema>
@@ -35,6 +36,7 @@ export const roomSchema = z.object({
   carpetArea: z.number().positive().optional(),
   builtUpArea: z.number().positive().optional(),
   floorNumber: z.number().int().optional(),
+  capacity: z.number().int().positive('Capacity must be positive').default(1),
   amenities: z.string().optional(),
   currentRent: z.number().positive('Rent must be positive'),
   description: z.string().optional(),

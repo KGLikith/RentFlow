@@ -38,7 +38,7 @@ export interface BulkRoomResult {
 
 
 export const TenantBulkSchema = z.object({
-  name: z.string().min(1, 'Name required'),
+  name: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email('Invalid email').optional(),
   roomId: z.string(),
@@ -48,7 +48,7 @@ export const TenantBulkSchema = z.object({
 
 export interface TenantBulkPreview {
   rowIndex: number
-  name: string
+  name?: string
   phone?: string
   email?: string
   roomId: string
@@ -64,7 +64,7 @@ export interface TenantBulkResult {
   success: number
   failed: number
   details: {
-    created: Array<{ id: string; name: string; roomId: string }>
-    errors: Array<{ rowIndex: number; name: string; error: string }>
+    created: Array<{ id: string; name?: string; email?: string; roomId: string; roomNumber?: string; propertyName?: string; rentAmount?: number; deposit?: number }>
+    errors: Array<{ rowIndex: number; name?: string; email?: string; error: string }>
   }
 }
