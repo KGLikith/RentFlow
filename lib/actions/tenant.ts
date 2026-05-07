@@ -103,8 +103,11 @@ export async function validateTenantBulk(
     },
     select: {
       roomId: true,
+      email: true,
     },
   })
+
+  const existingEmails = new Set(existingTenants.map(t => t.email?.toLowerCase()).filter(Boolean))
 
   const occupancyMap = new Map<string, number>()
   existingTenants.forEach((tenant) => {
@@ -115,6 +118,14 @@ export async function validateTenantBulk(
     if (!tenant.isValid) return tenant
 
     const warnings: string[] = [...(tenant.warnings || [])]
+
+    if (tenant.email && existingEmails.has(tenant.email.toLowerCase())) {
+      return {
+        ...tenant,
+        isValid: false,
+        error: 'Tenant with this email is already present in the current property',
+      }
+    }
 
     if (!roomMap.has(tenant.roomId)) {
       return {
@@ -244,7 +255,7 @@ export async function bulkCreateTenants(
               deposit: new Decimal(tenant.deposit),
               rentDueDay: tenant.rentDueDay || 1,
               graceDays: 5,
-              prorateFirstMonth: true,
+              prorateFirstMonth: false,
               collectAdvanceRent: true,
               isActive: true,
             }

@@ -107,6 +107,16 @@ export async function GET(
         carpetArea: true,
         amenities: true,
         description: true,
+        tenants: {
+          where: { status: 'ACTIVE' },
+          select: {
+            id: true,
+            invoices: {
+              where: { status: { in: ['PENDING', 'LATE', 'OVERDUE'] } },
+              select: { id: true }
+            }
+          }
+        }
       },
     })
 

@@ -24,6 +24,7 @@ export interface RoomItem {
   currentRent?: any
   floorNumber?: number | null
   amenities?: string | null
+  tenants?: Array<{ id: string; invoices?: Array<{ id: string }> }>
 }
 
 interface Props {
@@ -225,6 +226,21 @@ export function FloorRoomView({ rooms, propertyId, totalFloors = 1, readonly = f
         </div>
       )}
 
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-2 py-2 text-[10px] font-bold tracking-wider uppercase">
+        <div className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
+          <div className="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-sm shadow-purple-500/40" /> Payment Dues (Priority)
+        </div>
+        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/40" /> Full Occupancy
+        </div>
+        <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm shadow-amber-500/40" /> Partial Occupancy
+        </div>
+        <div className="flex items-center gap-1.5 text-red-500 dark:text-red-400">
+          <div className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-sm shadow-red-400/40" /> No Occupancy
+        </div>
+      </div>
+
       {/* Floor sections */}
       {floorOrder.map(floorKey => {
         const floorRooms = grouped.get(floorKey)!
@@ -267,6 +283,26 @@ export function FloorRoomView({ rooms, propertyId, totalFloors = 1, readonly = f
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {floorRooms.map(room => {
                   const checked = selectedIds.has(room.id)
+                  const activeTenants = room.tenants?.length || 0
+                  const hasDues = room.tenants?.some(t => t.invoices && t.invoices.length > 0)
+                  const isFull = activeTenants >= room.capacity
+                  const isEmpty = activeTenants === 0
+                  const isPartial = !isEmpty && !isFull
+                  
+                  let ringClass = "border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30"
+                  if (hasDues) {
+                    // Dues is absolute priority - regardless of occupancy, we need to know about the money
+                    ringClass = "border-purple-500 dark:border-purple-600 bg-purple-50/50 dark:bg-purple-900/20 shadow-[0_0_0_1px_rgba(168,85,247,0.4)]"
+                  } else if (isEmpty) {
+                    ringClass = "border-red-400 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20"
+                  } else if (isPartial) {
+                    ringClass = "border-amber-400 dark:border-amber-600/60 bg-amber-50/50 dark:bg-amber-900/20 shadow-[0_0_0_1px_rgba(245,158,11,0.2)]"
+                  } else if (isFull) {
+                    ringClass = "border-emerald-500 dark:border-emerald-600/60 bg-emerald-50/50 dark:bg-emerald-900/20 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]"
+                  }
+
+                  if (checked) ringClass = "border-[#f97316] bg-orange-50/80 dark:bg-orange-950/30 shadow-[0_0_0_1px_rgba(249,115,22,0.5)]"
+
                   return (
                     <div key={room.id} className="relative group">
                       {/* Selection checkbox */}
@@ -274,26 +310,30 @@ export function FloorRoomView({ rooms, propertyId, totalFloors = 1, readonly = f
                         <button
                           type="button"
                           onClick={() => toggleRoom(room.id)}
-                          className={`absolute top-2 left-2 z-10 h-4 w-4 rounded border flex items-center justify-center transition-all ${checked ? 'bg-[#f97316] border-[#f97316] opacity-100' : 'border-gray-300 dark:border-gray-600 opacity-0 group-hover:opacity-100'}`}
+                          className={`absolute top-2 right-2 z-10 h-4 w-4 rounded border flex items-center justify-center transition-all ${checked ? 'bg-[#f97316] border-[#f97316] opacity-100' : 'border-gray-300 dark:border-gray-600 opacity-0 group-hover:opacity-100 bg-white/50 dark:bg-gray-800/50'}`}
                         >
                           {checked && <Check className="h-2.5 w-2.5 text-white" />}
                         </button>
                       )}
 
                       <Link href={`/dashboard/properties/${propertyId}/rooms/${room.id}`}>
-                        <div className={`p-3 rounded-xl border transition-all cursor-pointer ${checked ? 'border-[#f97316]/40 bg-orange-50/60 dark:bg-orange-950/20' : 'border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 hover:border-[#f97316]/30 hover:bg-orange-50/40'}`}>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <div className="h-7 w-7 rounded-lg bg-white dark:bg-gray-800 shadow-xs flex items-center justify-center">
-                              <BedDouble className="h-3.5 w-3.5 text-[#f97316]" />
-                            </div>
-                            <ChevronRight className="h-3.5 w-3.5 text-gray-300 group-hover:text-[#f97316] transition-colors" />
+                        <div className={`p-3 rounded-xl border transition-all cursor-pointer ${ringClass} hover:brightness-95 dark:hover:brightness-110`}>
+                          <div className="flex items-start justify-between mb-0.5">
+                            <p className="text-[14px] font-bold text-gray-900 dark:text-white truncate pr-2">
+                              {room.roomNumber}
+                            </p>
+                            {hasDues && (
+                              <div className="w-2 h-2 mt-1.5 shrink-0 rounded-full bg-purple-500 shadow-[0_0_4px_rgba(168,85,247,0.8)]" title="Dues pending" />
+                            )}
                           </div>
-                          <p className="text-[13px] font-bold text-gray-900 dark:text-white truncate">
-                            {room.roomNumber}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                          <p className="text-[11px] text-muted-foreground truncate">
                             {room.roomType || 'Room'}
                           </p>
+                          <div className="mt-2 pt-2 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
+                            <span className="text-[10px] font-semibold tracking-wider uppercase text-gray-500 dark:text-gray-400">
+                              {activeTenants}/{room.capacity} Occupied
+                            </span>
+                          </div>
                         </div>
                       </Link>
                     </div>

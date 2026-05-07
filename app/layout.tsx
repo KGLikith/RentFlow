@@ -4,6 +4,7 @@ import './globals.css'
 import { ClerkProvider } from '@clerk/nextjs'
 import { AuthProvider } from '@/lib/context/auth-context'
 import { Inter } from 'next/font/google'
+import { Toaster } from 'sonner'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -45,6 +46,7 @@ export default function RootLayout({
             <AuthProvider>
               {children}
             </AuthProvider>
+            <Toaster richColors position="top-center" />
           </ClerkProvider>
         </QueryProvider>
       </body>

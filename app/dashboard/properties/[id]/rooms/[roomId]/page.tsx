@@ -4,11 +4,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { 
   ArrowLeft, BedDouble, User, Phone, Mail, IndianRupee, MapPin, LayoutGrid, 
-  Layers, Expand, CheckCircle2, ShieldCheck, ShieldAlert, LogOut, AlertCircle, FileText, Plus, X, Receipt, Activity, ExternalLink
+  Layers, Expand, CheckCircle2, ShieldCheck, ShieldAlert, LogOut, AlertCircle, FileText, Receipt, Activity, ExternalLink
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { AmenitiesList } from '@/components/property/amenities-list'
-import { Input } from '@/components/ui/input'
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { EditAmenitiesDialog } from '@/components/property/edit-amenities-dialog'
 import { RoomForm } from '@/components/forms/room-form'
@@ -183,9 +181,21 @@ export default function RoomDetailPage() {
           
           {/* Quick Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div 
+              onClick={() => router.push(`/dashboard/properties/${propertyId}`)}
+              className="bg-white dark:bg-gray-950/50 p-3 md:p-4 rounded-2xl border border-gray-100 dark:border-gray-800/60 flex flex-col items-center justify-center text-center shadow-sm cursor-pointer hover:border-orange-200 dark:hover:border-orange-900/50 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-all group relative overflow-hidden"
+            >
+              <div className="absolute top-2.5 right-2.5 text-gray-400 group-hover:text-orange-500 transition-colors">
+                <ExternalLink className="h-3.5 w-3.5" />
+              </div>
+              <div className="h-8 w-8 rounded-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center mb-2 group-hover:bg-white dark:group-hover:bg-gray-800 transition-colors">
+                <MapPin className="h-4 w-4 text-[#f97316]" />
+              </div>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Property</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-white truncate w-full px-2">{room.property.name}</p>
+            </div>
             <StatCard icon={<IndianRupee className="h-4 w-4 text-emerald-500" />} label="Rent" value={`₹${Number(room.currentRent).toLocaleString()}`} />
             <StatCard icon={<Layers className="h-4 w-4 text-blue-500" />} label="Floor" value={floorLabel} />
-            <StatCard icon={<Expand className="h-4 w-4 text-purple-500" />} label="Area" value={room.carpetArea ? `${room.carpetArea} sqft` : 'N/A'} />
             <StatCard icon={<User className="h-4 w-4 text-orange-500" />} label="Capacity" value={`${room.capacity} Person${room.capacity > 1 ? 's' : ''}`} />
           </div>
 

@@ -23,8 +23,6 @@ export async function GET() {
         property: {
           ownerId: user.id,
         },
-        // Default: only ACTIVE. Pass ?status=all to include LEFT tenants too.
-        status: 'ACTIVE',
       },
       select: {
         id: true,
@@ -32,6 +30,7 @@ export async function GET() {
         email: true,
         phone: true,
         status: true,
+        isVerified: true,
         user: {
           select: {
             name: true,
@@ -49,6 +48,37 @@ export async function GET() {
             roomNumber: true,
           },
         },
+        // Fetch active leases to determine "Good Standing" and Next Payment
+        leases: {
+          where: { isActive: true },
+          take: 1,
+          select: {
+            startDate: true,
+            endDate: true,
+            rentAmount: true,
+          }
+        },
+        // Fetch pending/overdue invoices to determine payment status
+        invoices: {
+          where: { 
+            status: { in: ['PENDING', 'OVERDUE'] } 
+          },
+          orderBy: { dueDate: 'asc' },
+          select: {
+            id: true,
+            amount: true,
+            status: true,
+            dueDate: true,
+            payments: {
+              where: { status: 'UNDER_REVIEW' },
+              select: {
+                id: true,
+                status: true,
+                proofUrl: true,
+              }
+            }
+          }
+        }
       },
       orderBy: { createdAt: 'desc' },
     })

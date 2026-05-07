@@ -14,7 +14,7 @@ import type { RoomItem } from '@/components/property/floor-room-view'
 import { useParams, useRouter } from 'next/navigation'
 import {
   MapPin, BedDouble, ArrowLeft, Plus, Navigation, Edit2, Building2,
-  Hash, Globe, FileText, ChevronLeft, ChevronRight, Layers, User, Mail, Phone, CreditCard, LayoutGrid
+  Globe, FileText, ChevronLeft, ChevronRight, Layers, User, Mail, Phone, CreditCard, LayoutGrid
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useQueryClient } from '@tanstack/react-query'
@@ -53,6 +53,20 @@ interface Property {
 }
 
 type Room = RoomItem;
+
+function DetailTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded-3xl bg-white dark:bg-gray-950/50 border border-gray-100 dark:border-gray-800/60 p-5 space-y-3 shadow-sm hover:shadow-md transition-shadow">
+      <div className="h-10 w-10 rounded-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        {icon}
+      </div>
+      <div>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+        <p className="text-lg font-bold text-gray-900 dark:text-white leading-tight truncate">{value}</p>
+      </div>
+    </div>
+  )
+}
 
 export default function PropertyDetailPage() {
   const params = useParams()
@@ -166,6 +180,105 @@ export default function PropertyDetailPage() {
     ? `https://www.google.com/maps/dir/?api=1&destination=${property.latitude},${property.longitude}`
     : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent([property.address, property.city, property.state].join(', '))}`
 
+  const renderStats = () => (
+    <div className="grid grid-cols-2 gap-4">
+      <DetailTile icon={<BedDouble className="h-4 w-4 text-emerald-500" />} label="Total Rooms" value={String(rooms.length)} />
+      <DetailTile icon={<Layers className="h-4 w-4 text-purple-500" />} label="Total Floors" value={String(new Set(rooms.map(r => r.floorNumber ?? 0)).size)} />
+    </div>
+  )
+
+  const renderOwner = () => (
+    property.owner && (
+      <div className="p-5 rounded-2xl bg-gray-50/50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-800 space-y-4 shadow-sm">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="h-10 w-10 rounded-xl bg-[#f97316]/10 flex items-center justify-center">
+            <User className="h-5 w-5 text-[#f97316]" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">Owner Information</h3>
+            <p className="text-[13px] text-gray-500">{property.owner.name || 'Property Manager'}</p>
+          </div>
+        </div>
+        
+        <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800/60">
+          <div className="flex items-center gap-3">
+            <div className="h-7 w-7 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <Mail className="h-3.5 w-3.5 text-gray-500" />
+            </div>
+            <span className="text-[14px] font-medium text-gray-700 dark:text-gray-300">{property.owner.email}</span>
+          </div>
+          {property.owner.phone && (
+            <div className="flex items-center gap-3">
+              <div className="h-7 w-7 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                <Phone className="h-3.5 w-3.5 text-gray-500" />
+              </div>
+              <span className="text-[14px] font-medium text-gray-700 dark:text-gray-300">{property.owner.phone}</span>
+            </div>
+          )}
+          {property.owner.upiId && (
+            <div className="flex items-center gap-3">
+              <div className="h-7 w-7 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                <CreditCard className="h-3.5 w-3.5 text-gray-500" />
+              </div>
+              <span className="text-[14px] font-medium text-gray-700 dark:text-gray-300">UPI: {property.owner.upiId}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  )
+
+  const renderMap = () => (
+    <section className="bg-white dark:bg-gray-950/50 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-gray-800/60 shadow-sm space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <Globe className="h-5 w-5 text-[#f97316]" />
+          Location
+        </h2>
+        <a
+          href={directionsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#f97316] hover:text-[#ea580c] transition-colors"
+        >
+          <Navigation className="h-4 w-4" />
+          Get Directions
+        </a>
+      </div>
+      
+      {property.latitude && property.longitude ? (
+        <div className="relative w-full h-48 md:h-64 rounded-2xl overflow-hidden bg-muted/20 cursor-pointer border border-gray-100 dark:border-gray-800" onClick={() => setOpenMap(true)}>
+          <div className="absolute inset-0 bg-black/5 z-10 pointer-events-none mix-blend-multiply" />
+          <iframe
+            width="100%"
+            height="100%"
+            frameBorder="0"
+            scrolling="no"
+            src={`https://www.openstreetmap.org/export/embed.html?bbox=${property.longitude - 0.005},${property.latitude - 0.005},${property.longitude + 0.005},${property.latitude + 0.005}&layer=mapnik&marker=${property.latitude},${property.longitude}`}
+            className="w-full h-full object-cover grayscale contrast-125 opacity-80 pointer-events-none transition-transform duration-700 hover:scale-105"
+          />
+          <div className="absolute inset-0 grid place-items-center z-20 pointer-events-none">
+            <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur px-4 py-2 rounded-full text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm border border-gray-200 dark:border-gray-700">
+              Tap to expand map
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="w-full h-32 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 flex flex-col items-center justify-center text-muted-foreground">
+          <MapPin className="h-6 w-6 mb-2 opacity-50" />
+          <p className="text-sm">Location not pinned on map</p>
+        </div>
+      )}
+      
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
+        <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+          {property.address}, {property.city}, {property.state} {property.postalCode}
+        </span>
+      </div>
+    </section>
+  )
+
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 md:space-y-8 pb-10 px-4 md:px-0">
       
@@ -202,10 +315,12 @@ export default function PropertyDetailPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-6 lg:gap-8">
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
         
-        {/* Left Column (Media & Details) */}
-        <div className="space-y-6 lg:space-y-8">
+        {/* Left Column (Main Content) */}
+        <div className="w-full lg:flex-[1.5] flex flex-col space-y-6 lg:space-y-8">
+        
+
           
           {/* Media Carousel */}
           <div className="relative w-full aspect-video md:aspect-video rounded-3xl overflow-hidden bg-muted/30 border border-gray-100 dark:border-gray-800/60 shadow-sm group">
@@ -262,31 +377,22 @@ export default function PropertyDetailPage() {
             )}
           </div>
 
-          {/* Amenities & Description Section */}
+          {/* Mobile Only: Stats */}
+          <div className="block lg:hidden">
+            {renderStats()}
+          </div>
+
+          {/* Mobile Only: Map */}
+          <div className="block lg:hidden">
+            {renderMap()}
+          </div>
+
+          {/* About & Amenities Section */}
           {(property.amenities || property.description || property.userRole === 'OWNER') && (
-            <section className="bg-white dark:bg-gray-950/50 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-gray-800/60 shadow-sm space-y-6">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <LayoutGrid className="h-5 w-5 text-[#f97316]" />
-                    Property Amenities
-                  </h2>
-                  {property.userRole === 'OWNER' && (
-                    <EditAmenitiesDialog 
-                      initialAmenities={property.amenities || null}
-                      onSave={handleSaveAmenities}
-                    />
-                  )}
-                </div>
-                {property.amenities ? (
-                  <AmenitiesList amenitiesStr={property.amenities} />
-                ) : (
-                  <p className="text-sm text-gray-500 italic mb-4">No amenities specified for this property.</p>
-                )}
-              </div>
-              
+            <div className="space-y-6 lg:space-y-8">
+              {/* Description comes FIRST */}
               {property.description && (
-                <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
+                <section className="bg-white dark:bg-gray-950/50 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-gray-800/60 shadow-sm">
                   <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
                     <FileText className="h-5 w-5 text-[#f97316]" />
                     About this property
@@ -294,161 +400,96 @@ export default function PropertyDetailPage() {
                   <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
                     {property.description}
                   </p>
-                </div>
+                </section>
               )}
-            </section>
+
+              {/* Amenities come SECOND */}
+              {(property.amenities || property.userRole === 'OWNER') && (
+                <section className="bg-white dark:bg-gray-950/50 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-gray-800/60 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      <LayoutGrid className="h-5 w-5 text-[#f97316]" />
+                      Property Amenities
+                    </h2>
+                    {property.userRole === 'OWNER' && (
+                      <EditAmenitiesDialog 
+                        initialAmenities={property.amenities || null}
+                        onSave={handleSaveAmenities}
+                      />
+                    )}
+                  </div>
+                  {property.amenities ? (
+                    <AmenitiesList amenitiesStr={property.amenities} />
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No amenities specified for this property.</p>
+                  )}
+                </section>
+              )}
+            </div>
           )}
 
-          {/* Map Location Section */}
-          <section className="bg-white dark:bg-gray-950/50 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-gray-800/60 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <Globe className="h-5 w-5 text-[#f97316]" />
-                Location
-              </h2>
-              <a
-                href={directionsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#f97316] hover:text-[#ea580c] transition-colors"
-              >
-                <Navigation className="h-4 w-4" />
-                Get Directions
-              </a>
-            </div>
-            
-            {property.latitude && property.longitude ? (
-              <div className="relative w-full h-48 md:h-64 rounded-2xl overflow-hidden bg-muted/20 cursor-pointer border border-gray-100 dark:border-gray-800" onClick={() => setOpenMap(true)}>
-                <div className="absolute inset-0 bg-black/5 z-10 pointer-events-none mix-blend-multiply" />
-                <iframe
-                  width="100%"
-                  height="100%"
-                  frameBorder="0"
-                  scrolling="no"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${property.longitude - 0.005},${property.latitude - 0.005},${property.longitude + 0.005},${property.latitude + 0.005}&layer=mapnik&marker=${property.latitude},${property.longitude}`}
-                  className="w-full h-full object-cover grayscale contrast-125 opacity-80 pointer-events-none transition-transform duration-700 hover:scale-105"
-                />
-                <div className="absolute inset-0 grid place-items-center z-20 pointer-events-none">
-                  <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur px-4 py-2 rounded-full text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm border border-gray-200 dark:border-gray-700">
-                    Tap to expand map
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="w-full h-32 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 flex flex-col items-center justify-center text-muted-foreground">
-                <MapPin className="h-6 w-6 mb-2 opacity-50" />
-                <p className="text-sm">Location not pinned on map</p>
-              </div>
-            )}
-            
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                {property.address}, {property.city}, {property.state} {property.postalCode}
-              </span>
-            </div>
-          </section>
-
+          {/* Mobile Only: Owner Info */}
+          <div className="block lg:hidden">
+            {renderOwner()}
+          </div>
         </div>
 
-        {/* Right Column (Stats & Rooms) */}
-        <div className="space-y-6 lg:space-y-8">
-          
-          {/* Key Stats */}
-          <div className="grid grid-cols-2 gap-4">
-            <DetailTile icon={<BedDouble className="h-4 w-4 text-emerald-500" />} label="Total Rooms" value={String(rooms.length)} />
-            <DetailTile icon={<Hash className="h-4 w-4 text-blue-500" />} label="Postal Code" value={property.postalCode || 'N/A'} />
-            <DetailTile icon={<Globe className="h-4 w-4 text-sky-500" />} label="State" value={property.state} />
-            <DetailTile icon={<Layers className="h-4 w-4 text-purple-500" />} label="Total Floors" value={String(new Set(rooms.map(r => r.floorNumber ?? 0)).size)} />
-          </div>
-
-          {/* Owner Info */}
-          {property.owner && (
-            <div className="p-5 rounded-2xl bg-gray-50/50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-800 space-y-4 shadow-sm">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="h-10 w-10 rounded-xl bg-[#f97316]/10 flex items-center justify-center">
-                  <User className="h-5 w-5 text-[#f97316]" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-gray-900 dark:text-white">Owner Information</h3>
-                  <p className="text-[13px] text-gray-500">{property.owner.name || 'Property Manager'}</p>
-                </div>
-              </div>
-              
-              <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-800/60">
-                <div className="flex items-center gap-3">
-                  <div className="h-7 w-7 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                    <Mail className="h-3.5 w-3.5 text-gray-500" />
-                  </div>
-                  <span className="text-[14px] font-medium text-gray-700 dark:text-gray-300">{property.owner.email}</span>
-                </div>
-                {property.owner.phone && (
-                  <div className="flex items-center gap-3">
-                    <div className="h-7 w-7 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                      <Phone className="h-3.5 w-3.5 text-gray-500" />
-                    </div>
-                    <span className="text-[14px] font-medium text-gray-700 dark:text-gray-300">{property.owner.phone}</span>
-                  </div>
-                )}
-                {property.owner.upiId && (
-                  <div className="flex items-center gap-3">
-                    <div className="h-7 w-7 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                      <CreditCard className="h-3.5 w-3.5 text-gray-500" />
-                    </div>
-                    <span className="text-[14px] font-medium text-gray-700 dark:text-gray-300">UPI: {property.owner.upiId}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Rooms List */}
-          <Card className="rounded-3xl border border-gray-100 dark:border-gray-800/60 shadow-sm bg-white dark:bg-gray-950/50">
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-              <div>
-                <CardTitle className="text-xl flex items-center gap-2">
-                  <BedDouble className="h-5 w-5 text-[#f97316]" />
-                  {property.userRole === 'OWNER' ? 'Rooms' : 'Your Room'}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {property.userRole === 'OWNER' 
-                    ? `${rooms.length} room${rooms.length !== 1 ? 's' : ''} across ${new Set(rooms.filter(r => r.floorNumber != null).map(r => r.floorNumber)).size || '—'} floors`
-                    : 'Details about the room you are renting'
-                  }
-                </p>
-              </div>
-              {property.userRole === 'OWNER' && (
-                <Dialog open={openRoomDialog} onOpenChange={setOpenRoomDialog}>
-                  <DialogTrigger asChild>
-                    <Button size="icon" className="h-10 w-10 rounded-full bg-orange-50 dark:bg-orange-900/20 text-[#f97316] hover:bg-[#f97316] hover:text-white transition-colors shadow-none">
-                      <Plus className="h-5 w-5" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl">
-                    <RoomForm
-                      propertyId={propertyId}
-                      totalFloors={property.totalFloors || 1}
-                      onSuccess={() => {
-                        setOpenRoomDialog(false)
-                        fetchData()
-                      }}
-                    />
-                  </DialogContent>
-                </Dialog>
-              )}
-            </CardHeader>
-            <CardContent className="pt-0">
-              <FloorRoomView
-                rooms={rooms}
-                propertyId={propertyId}
-                totalFloors={property.totalFloors || 1}
-                onBulkUpdate={handleBulkUpdate}
-                readonly={property.userRole !== 'OWNER'}
-              />
-            </CardContent>
-          </Card>
-          
+        {/* Right Column (Stats & Metadata) */}
+        <div className="hidden lg:flex w-full lg:flex-1 flex-col space-y-6 lg:space-y-8">
+          {renderStats()}
+          {renderOwner()}
+          {renderMap()}
         </div>
       </div>
+
+      {/* Rooms List - Full Width at Bottom */}
+      <div className="mt-6 lg:mt-8">
+        <Card className="rounded-3xl border border-gray-100 dark:border-gray-800/60 shadow-sm bg-white dark:bg-gray-950/50">
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <div>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <BedDouble className="h-5 w-5 text-[#f97316]" />
+                {property.userRole === 'OWNER' ? 'Rooms' : 'Your Room'}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {property.userRole === 'OWNER' 
+                  ? `${rooms.length} room${rooms.length !== 1 ? 's' : ''} across ${new Set(rooms.filter(r => r.floorNumber != null).map(r => r.floorNumber)).size || '—'} floors`
+                  : 'Details about the room you are renting'
+                }
+              </p>
+            </div>
+            {property.userRole === 'OWNER' && (
+              <Dialog open={openRoomDialog} onOpenChange={setOpenRoomDialog}>
+                <DialogTrigger asChild>
+                  <Button size="icon" className="h-10 w-10 rounded-full bg-orange-50 dark:bg-orange-900/20 text-[#f97316] hover:bg-[#f97316] hover:text-white transition-colors shadow-none">
+                    <Plus className="h-5 w-5" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl">
+                  <RoomForm
+                    propertyId={propertyId}
+                    totalFloors={property.totalFloors || 1}
+                    onSuccess={() => {
+                      setOpenRoomDialog(false)
+                      fetchData()
+                    }}
+                  />
+                </DialogContent>
+              </Dialog>
+            )}
+          </CardHeader>
+          <CardContent className="pt-0">
+            <FloorRoomView
+              rooms={rooms}
+              propertyId={propertyId}
+              totalFloors={property.totalFloors || 1}
+              onBulkUpdate={handleBulkUpdate}
+              readonly={property.userRole !== 'OWNER'}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
 
       {/* Interactive map modal */}
       {property.latitude && property.longitude && (
@@ -483,6 +524,7 @@ export default function PropertyDetailPage() {
           <PropertyForm
             initialData={{
               ...property,
+              name: property.name || '',
               country: property.country ?? 'India',
               latitude: property.latitude ?? undefined,
               longitude: property.longitude ?? undefined,
@@ -499,20 +541,6 @@ export default function PropertyDetailPage() {
           />
         </DialogContent>
       </Dialog>
-    </div>
-  )
-}
-
-function DetailTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="rounded-3xl bg-white dark:bg-gray-950/50 border border-gray-100 dark:border-gray-800/60 p-5 space-y-3 shadow-sm hover:shadow-md transition-shadow">
-      <div className="h-10 w-10 rounded-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        {icon}
-      </div>
-      <div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
-        <p className="text-lg font-bold text-gray-900 dark:text-white leading-tight truncate">{value}</p>
-      </div>
     </div>
   )
 }

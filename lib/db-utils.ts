@@ -3,22 +3,23 @@ import { prisma } from './prisma'
 import { Decimal } from '@prisma/client/runtime/library'
 
 export async function generateMonthlyInvoices(
-  propertyId: string,
   month: number,
-  year: number
+  year: number,
+  propertyId?: string
 ) {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const whereClause: any = {
+      isActive: true,
+      startDate: { lte: new Date(year, month, 0) } // Started before or during the end of this billing month
+    };
+    
+    if (propertyId) {
+      whereClause.propertyId = propertyId;
+    }
+
     const leases = await prisma.lease.findMany({
-      where: {
-        propertyId,
-        isActive: true,
-        startDate: {
-          lte: new Date(year, month - 1, 1)
-        },
-        endDate: {
-          gte: new Date(year, month, 0)
-        }
-      },
+      where: whereClause,
       include: {
         tenant: true
       }
@@ -27,12 +28,19 @@ export async function generateMonthlyInvoices(
     const invoices = []
 
     for (const lease of leases) {
-      const existing = await prisma.invoice.findFirst({
+      // Skip if lease ended before this month started
+      if (lease.endDate && lease.endDate < new Date(year, month - 1, 1)) {
+        continue;
+      }
+
+      const existing = await prisma.invoice.findUnique({
         where: {
-          leaseId: lease.id,
-          tenantProfileId: lease.tenantProfileId,
-          month,
-          year
+          tenantProfileId_month_year_type: {
+            tenantProfileId: lease.tenantProfileId,
+            month,
+            year,
+            type: 'RENT'
+          }
         }
       })
 
@@ -41,17 +49,23 @@ export async function generateMonthlyInvoices(
         continue
       }
 
-      const dueDate = new Date(year, month - 1, lease.rentDueDay || 1)
+      // Check if due day has passed, or calculate due date properly
+      let dueDay = lease.rentDueDay || 1;
+      const daysInMonth = new Date(year, month, 0).getDate();
+      if (dueDay > daysInMonth) dueDay = daysInMonth; // Handle 31st on Feb etc.
+      
+      const dueDate = new Date(year, month - 1, dueDay)
 
       const invoice = await prisma.invoice.create({
         data: {
-          propertyId,
+          propertyId: lease.propertyId,
           tenantProfileId: lease.tenantProfileId,
           leaseId: lease.id,
           month,
           year,
           amount: lease.rentAmount,
           dueDate,
+          type: 'RENT',
           status: InvoiceStatus.PENDING
         }
       })
@@ -76,7 +90,8 @@ export async function recordPayment(
 ) {
   try {
     const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId }
+      where: { id: invoiceId },
+      include: { lease: true }
     })
 
     if (!invoice) {
@@ -102,13 +117,20 @@ export async function recordPayment(
 
     const paidAmount = totalPaid._sum.amount || new Decimal(0)
 
-    let newStatus: InvoiceStatus = InvoiceStatus.PENDING
+    let newStatus: InvoiceStatus = invoice.status;
+    
     if (paidAmount.gte(invoice.amount)) {
       newStatus = InvoiceStatus.PAID
-    } else if (paidAmount.gt(0)) {
-      newStatus = InvoiceStatus.PAID
-    } else if (new Date() > invoice.dueDate) {
-      newStatus = InvoiceStatus.OVERDUE
+    } else {
+      const graceDays = invoice.lease?.graceDays ?? 5;
+      const lateDate = new Date(invoice.dueDate);
+      lateDate.setDate(lateDate.getDate() + graceDays);
+      
+      if (new Date() > lateDate) {
+        newStatus = InvoiceStatus.LATE
+      } else {
+        newStatus = InvoiceStatus.PENDING
+      }
     }
 
     await prisma.invoice.update({
