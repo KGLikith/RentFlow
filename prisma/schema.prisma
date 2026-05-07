@@ -23,7 +23,16 @@ enum InvitationStatus {
 enum InvoiceStatus {
   PENDING
   PAID
+  LATE
   OVERDUE
+}
+
+enum InvoiceType {
+  RENT
+  DEPOSIT
+  MAINTENANCE
+  ADJUSTMENT
+  LATE_FEE
 }
 
 enum PaymentStatus {
@@ -82,6 +91,7 @@ model Property {
   latitude    Float?
   longitude   Float?
   imageUrls   String[] @default([])
+  amenities   String?  @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -200,6 +210,10 @@ model Lease {
   deposit    Decimal? @db.Decimal(10, 2)
   rentDueDay Int
 
+  graceDays          Int     @default(5)
+  prorateFirstMonth  Boolean @default(true)
+  collectAdvanceRent Boolean @default(true)
+
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
@@ -227,6 +241,7 @@ model Invoice {
   amount  Decimal  @db.Decimal(10, 2)
   dueDate DateTime
 
+  type InvoiceType @default(RENT)
   status InvoiceStatus @default(PENDING)
 
   createdAt DateTime @default(now())
@@ -238,7 +253,7 @@ model Invoice {
 
   payments Payment[]
 
-  @@unique([tenantProfileId, month, year])
+  @@unique([tenantProfileId, month, year, type])
   @@index([propertyId])
   @@index([tenantProfileId, status])
 }

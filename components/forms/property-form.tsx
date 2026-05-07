@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Loader2, MapPin, Building2, Home, ArrowLeft, ArrowRight, X } from 'lucide-react'
+import { Loader2, MapPin, Building2, Home, ArrowLeft, ArrowRight, X, LayoutGrid, CheckCircle2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { UploadButton } from '@/lib/uploadthing'
 import dynamic from 'next/dynamic'
@@ -41,6 +41,7 @@ export function PropertyForm({ onSuccess, initialData, isEdit = false }: Propert
       ? { lat: initialData.latitude, lng: initialData.longitude }
       : null
   )
+  const [amenityInput, setAmenityInput] = useState('')
   const queryClient = useQueryClient()
 
   const {
@@ -78,6 +79,25 @@ export function PropertyForm({ onSuccess, initialData, isEdit = false }: Propert
   const watchedAddress = watch('address')
   const watchedCity = watch('city')
   const watchedState = watch('state')
+
+  const amenitiesVal = watch('amenities') || ''
+  const amenitiesList = amenitiesVal ? amenitiesVal.split(',').map(a => a.trim()).filter(Boolean) : []
+
+  const handleAddAmenity = (e: React.KeyboardEvent<HTMLInputElement> | { key: string, preventDefault: () => void }) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (amenityInput.trim()) {
+        const newList = [...amenitiesList, amenityInput.trim()]
+        setValue('amenities', newList.join(','))
+        setAmenityInput('')
+      }
+    }
+  }
+
+  const handleRemoveAmenity = (index: number) => {
+    const newList = amenitiesList.filter((_, i) => i !== index)
+    setValue('amenities', newList.join(','))
+  }
 
   const handleGeocodeFromForm = useCallback(async () => {
     const addr = [watchedAddress, watchedCity, watchedState, 'India'].filter(Boolean).join(', ')
@@ -267,13 +287,49 @@ export function PropertyForm({ onSuccess, initialData, isEdit = false }: Propert
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-[13px] font-medium text-gray-700 dark:text-gray-300">Amenities</Label>
-            <Input
-              {...register('amenities')}
-              placeholder="e.g. WiFi, AC, Laundry, Meals Included"
-              className={inputClass}
-            />
+          <div className="space-y-2">
+            <Label className="text-[13px] font-medium text-gray-700 dark:text-gray-300 flex items-center justify-between">
+              <span>
+                <LayoutGrid className="h-3.5 w-3.5 inline-block mr-1.5 -mt-0.5" />
+                Amenities
+              </span>
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                value={amenityInput}
+                onChange={(e) => setAmenityInput(e.target.value)}
+                onKeyDown={handleAddAmenity}
+                placeholder="e.g. AC, WiFi (Press Enter to add)"
+                className={inputClass}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleAddAmenity({ key: 'Enter', preventDefault: () => {} })}
+                className="h-10 rounded-lg px-4"
+              >
+                Add
+              </Button>
+            </div>
+            
+            {amenitiesList.length > 0 && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Amenities Provided</p>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {amenitiesList.map((am, i) => (
+                    <li key={i} className="flex items-start justify-between bg-white dark:bg-gray-950 p-2 rounded-lg border border-gray-100 dark:border-gray-800 shadow-xs">
+                      <span className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300 leading-tight">
+                        <CheckCircle2 className="h-4 w-4 text-[#f97316] shrink-0 mt-0.5" />
+                        {am}
+                      </span>
+                      <button type="button" onClick={() => handleRemoveAmenity(i)} className="text-gray-400 hover:text-red-500 p-1 shrink-0">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">

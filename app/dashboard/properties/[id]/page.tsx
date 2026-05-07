@@ -19,6 +19,7 @@ import {
 import dynamic from 'next/dynamic'
 import { useQueryClient } from '@tanstack/react-query'
 import { AmenitiesList } from '@/components/property/amenities-list'
+import { EditAmenitiesDialog } from '@/components/property/edit-amenities-dialog'
 import type { ComponentType } from 'react'
 
 const LeafletModal = dynamic(() => import('@/components/ui/leaflet-modal'), { ssr: false }) as ComponentType<{
@@ -117,6 +118,16 @@ export default function PropertyDetailPage() {
       setLoading(false)
     }
   }, [propertyId])
+
+  const handleSaveAmenities = async (newAmenities: string) => {
+    const res = await fetch(`/api/properties/${propertyId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amenities: newAmenities }),
+    })
+    if (!res.ok) throw new Error('Failed to update amenities')
+    fetchData()
+  }
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -252,20 +263,30 @@ export default function PropertyDetailPage() {
           </div>
 
           {/* Amenities & Description Section */}
-          {(property.amenities || property.description) && (
+          {(property.amenities || property.description || property.userRole === 'OWNER') && (
             <section className="bg-white dark:bg-gray-950/50 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-gray-800/60 shadow-sm space-y-6">
-              {property.amenities && (
-                <div>
-                  <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                     <LayoutGrid className="h-5 w-5 text-[#f97316]" />
                     Property Amenities
                   </h2>
-                  <AmenitiesList amenitiesStr={property.amenities} />
+                  {property.userRole === 'OWNER' && (
+                    <EditAmenitiesDialog 
+                      initialAmenities={property.amenities || null}
+                      onSave={handleSaveAmenities}
+                    />
+                  )}
                 </div>
-              )}
+                {property.amenities ? (
+                  <AmenitiesList amenitiesStr={property.amenities} />
+                ) : (
+                  <p className="text-sm text-gray-500 italic mb-4">No amenities specified for this property.</p>
+                )}
+              </div>
               
               {property.description && (
-                <div className={property.amenities ? 'pt-6 border-t border-gray-100 dark:border-gray-800' : ''}>
+                <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
                   <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
                     <FileText className="h-5 w-5 text-[#f97316]" />
                     About this property

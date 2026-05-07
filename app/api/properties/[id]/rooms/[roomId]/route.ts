@@ -38,6 +38,7 @@ export async function GET(
             address: true,
             city: true,
             totalFloors: true,
+            owner: { select: { upiId: true } }
           }
         },
         tenants: {

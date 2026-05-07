@@ -4,11 +4,13 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { 
   ArrowLeft, BedDouble, User, Phone, Mail, IndianRupee, MapPin, LayoutGrid, 
-  Layers, Expand, CheckCircle2, ShieldCheck, ShieldAlert, LogOut, AlertCircle
+  Layers, Expand, CheckCircle2, ShieldCheck, ShieldAlert, LogOut, AlertCircle, FileText, Plus, X, Receipt, Activity, ExternalLink
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AmenitiesList } from '@/components/property/amenities-list'
-import { Dialog, DialogTrigger, DialogContent } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { EditAmenitiesDialog } from '@/components/property/edit-amenities-dialog'
 import { RoomForm } from '@/components/forms/room-form'
 import { Edit2 } from 'lucide-react'
 import { SingleTenantForm } from '@/components/forms/single-tenant-form'
@@ -41,6 +43,7 @@ interface Room {
     name: string
     address: string
     city: string
+    owner?: { upiId: string | null }
   }
   tenants: Tenant[]
   userRole?: string
@@ -55,6 +58,22 @@ export default function RoomDetailPage() {
   const [room, setRoom] = useState<Room | null>(null)
   const [loading, setLoading] = useState(true)
   const [openEdit, setOpenEdit] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean
+    title: string
+    description: string
+    confirmLabel: string
+    confirmClass: string
+    onConfirm: () => Promise<void>
+  }>({
+    open: false,
+    title: '',
+    description: '',
+    confirmLabel: '',
+    confirmClass: '',
+    onConfirm: async () => {},
+  })
 
   const fetchData = useCallback(async () => {
     try {
@@ -72,6 +91,16 @@ export default function RoomDetailPage() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  const handleSaveAmenities = async (newAmenities: string) => {
+    const res = await fetch(`/api/properties/${propertyId}/rooms/${roomId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amenities: newAmenities }),
+    })
+    if (!res.ok) throw new Error('Failed to update amenities')
+    fetchData()
+  }
 
   if (loading) {
     return (
@@ -160,23 +189,44 @@ export default function RoomDetailPage() {
             <StatCard icon={<User className="h-4 w-4 text-orange-500" />} label="Capacity" value={`${room.capacity} Person${room.capacity > 1 ? 's' : ''}`} />
           </div>
 
-          {/* About & Amenities */}
-          <div className="bg-white dark:bg-gray-950/50 rounded-3xl p-6 border border-gray-100 dark:border-gray-800/60 shadow-sm space-y-6">
+          {/* About & Amenities Card */}
+          <div className="bg-white dark:bg-gray-950/50 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-gray-800/60 shadow-sm space-y-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
-                <LayoutGrid className="h-5 w-5 text-[#f97316]" />
-                Amenities
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <LayoutGrid className="h-5 w-5 text-[#f97316]" />
+                  Room Amenities
+                </h2>
+                {room.userRole === 'OWNER' && (
+                  <EditAmenitiesDialog 
+                    initialAmenities={room.amenities} 
+                    onSave={handleSaveAmenities} 
+                  />
+                )}
+              </div>
+              
               {room.amenities ? (
-                <AmenitiesList amenitiesStr={room.amenities} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                  {room.amenities.split(',').map(a => a.trim()).filter(Boolean).map((am, i) => (
+                    <div key={i} className="flex items-start justify-between bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                      <span className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 font-medium">
+                        <CheckCircle2 className="h-4 w-4 text-[#f97316]" />
+                        {am}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <p className="text-sm text-gray-500 italic">No amenities specified for this room.</p>
+                <p className="text-sm text-gray-500 italic mb-4">No amenities specified for this room.</p>
               )}
             </div>
 
             {room.description && (
               <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Description</h2>
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-[#f97316]" />
+                  About this room
+                </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-wrap">
                   {room.description}
                 </p>
@@ -184,10 +234,61 @@ export default function RoomDetailPage() {
             )}
           </div>
 
+          {/* Money Snapshot Card */}
+          <div className="bg-white dark:bg-gray-950/50 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-gray-800/60 shadow-sm space-y-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Mail className="h-5 w-5 text-[#f97316]" />
+              Money snapshot
+            </h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between py-1">
+                <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Base room rent</span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {Number(room.currentRent) > 0 ? `₹${Number(room.currentRent).toLocaleString()}` : 'Not set'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Active monthly rent</span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  ₹{room.tenants.filter(t => t.status === 'ACTIVE').reduce((sum, t) => {
+                    const lease = t.leases[0]
+                    return sum + (lease ? Number(lease.rentAmount) : 0)
+                  }, 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Pending dues</span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">₹0</span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Recent collected</span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">₹0</span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Payment UPI</span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[150px] sm:max-w-xs">
+                  {room.property.owner?.upiId || 'Not Set'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity Card */}
+          <div className="bg-white dark:bg-gray-950/50 rounded-3xl p-6 md:p-8 border border-gray-100 dark:border-gray-800/60 shadow-sm space-y-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-[#f97316]" />
+              Recent activity
+            </h2>
+            <div className="py-2 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              No payment activity yet.
+            </div>
+          </div>
+
         </div>
 
         {/* Right Column: Tenants */}
-        <div className="space-y-6">
+        <div className="space-y-6 h-fit">
           <div className="bg-gray-50 dark:bg-gray-900/30 rounded-3xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm h-full">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -237,30 +338,31 @@ export default function RoomDetailPage() {
                             )}
                           </div>
                         </div>
-                        {/* Checkout button */}
+                        {/* Owner action: Check Out only — no destructive delete */}
                         {room.userRole === 'OWNER' && tenant.status === 'ACTIVE' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="shrink-0 h-8 text-xs rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-400 dark:border-red-800 dark:text-red-400"
-                            onClick={async () => {
-                              if (!confirm(`Check out ${tenant.name}? This will end their lease.`)) return
-                              try {
-                                const res = await fetch(`/api/tenants/${tenant.id}/checkout`, { method: 'POST' })
-                                const data = await res.json()
-                                if (!res.ok) {
-                                  toast.error(data.error || 'Checkout failed')
-                                } else {
-                                  toast.success(`${tenant.name} checked out successfully`)
+                          <div className="shrink-0">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[11px] rounded-full border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-400 dark:border-amber-800 dark:text-amber-400 px-2.5"
+                              onClick={() => setConfirmDialog({
+                                open: true,
+                                title: `Check out ${tenant.name}?`,
+                                description: 'This will mark the tenant as moved out and close their active lease. All history (invoices, payments, leases) will be fully preserved.',
+                                confirmLabel: 'Yes, Check Out',
+                                confirmClass: 'bg-amber-600 hover:bg-amber-700 text-white',
+                                onConfirm: async () => {
+                                  const res = await fetch(`/api/tenants/${tenant.id}/checkout`, { method: 'POST' })
+                                  const data = await res.json()
+                                  if (!res.ok) throw new Error(data.error || 'Checkout failed')
+                                  toast.success(`${tenant.name} checked out`)
                                   fetchData()
-                                }
-                              } catch {
-                                toast.error('Something went wrong')
-                              }
-                            }}
-                          >
-                            <LogOut className="h-3 w-3 mr-1" /> Check Out
-                          </Button>
+                                },
+                              })}
+                            >
+                              <LogOut className="h-3 w-3 mr-1" /> Check Out
+                            </Button>
+                          </div>
                         )}
                       </div>
 
@@ -289,6 +391,16 @@ export default function RoomDetailPage() {
                         <div>
                           <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Deposit</p>
                           <p className="text-sm font-semibold text-gray-900 dark:text-white">₹{Number(tenant.leases?.[0]?.deposit || 0).toLocaleString()}</p>
+                        </div>
+                        <div className="ml-auto">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-[11px] rounded-full text-[#f97316] hover:bg-orange-50 dark:hover:bg-orange-950/30 px-2.5"
+                            onClick={() => router.push(`/dashboard/tenants/${tenant.id}`)}
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" /> View Profile
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -338,6 +450,65 @@ export default function RoomDetailPage() {
               fetchData()
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Confirm Dialog (Checkout / Remove) ───────────────────────── */}
+      <Dialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => !actionLoading && setConfirmDialog(prev => ({ ...prev, open }))}
+      >
+        <DialogContent className="sm:max-w-[420px] rounded-2xl p-0 overflow-hidden border-0 shadow-2xl">
+          <div className="p-6 pb-4">
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="h-10 w-10 rounded-full bg-red-100 dark:bg-red-950/40 flex items-center justify-center shrink-0">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                </div>
+                <DialogTitle className="text-lg font-bold text-gray-900 dark:text-white leading-tight">
+                  {confirmDialog.title}
+                </DialogTitle>
+              </div>
+              <DialogDescription className="text-sm text-gray-500 dark:text-gray-400 pl-[52px]">
+                {confirmDialog.description}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <DialogFooter className="px-6 pb-6 flex flex-row gap-3 sm:justify-end">
+            <Button
+              variant="outline"
+              className="flex-1 sm:flex-none rounded-xl h-10"
+              disabled={actionLoading}
+              onClick={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+            >
+              Cancel
+            </Button>
+            <Button
+              className={`flex-1 sm:flex-none rounded-xl h-10 ${confirmDialog.confirmClass}`}
+              disabled={actionLoading}
+              onClick={async () => {
+                setActionLoading(true)
+                try {
+                  await confirmDialog.onConfirm()
+                  setConfirmDialog(prev => ({ ...prev, open: false }))
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : 'Something went wrong')
+                } finally {
+                  setActionLoading(false)
+                }
+              }}
+            >
+              {actionLoading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                  </svg>
+                  Processing...
+                </span>
+              ) : confirmDialog.confirmLabel}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

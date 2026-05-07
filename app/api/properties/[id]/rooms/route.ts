@@ -369,7 +369,10 @@ export async function PATCH(
 
     // Build a clean update payload — only include fields explicitly provided and non-empty
     const data: Record<string, any> = {}
-    if (updates.roomType?.trim()) data.roomType = updates.roomType.trim()
+    if (updates.roomType?.trim()) {
+      data.roomType = updates.roomType.trim()
+      data.capacity = roomTypeToCapacity(data.roomType)
+    }
     if (updates.currentRent !== undefined && updates.currentRent !== null) data.currentRent = updates.currentRent
     if (updates.carpetArea  !== undefined) data.carpetArea  = updates.carpetArea
     if (updates.floorNumber !== undefined) data.floorNumber = updates.floorNumber

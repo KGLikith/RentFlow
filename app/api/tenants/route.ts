@@ -23,10 +23,15 @@ export async function GET() {
         property: {
           ownerId: user.id,
         },
+        // Default: only ACTIVE. Pass ?status=all to include LEFT tenants too.
         status: 'ACTIVE',
       },
       select: {
         id: true,
+        name: true,
+        email: true,
+        phone: true,
+        status: true,
         user: {
           select: {
             name: true,
@@ -45,6 +50,7 @@ export async function GET() {
           },
         },
       },
+      orderBy: { createdAt: 'desc' },
     })
 
     return NextResponse.json(tenants)

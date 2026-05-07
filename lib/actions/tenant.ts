@@ -8,6 +8,21 @@ import { Room, TenantStatus } from '@/app/generated/prisma/client'
 
 import { TenantBulkPreview, TenantBulkResult } from './schema'
 
+function calculateFirstMonthRent(startDate: Date, monthlyRent: number, prorate: boolean): number {
+  if (!prorate) return monthlyRent;
+  
+  const year = startDate.getFullYear();
+  const month = startDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const joinDay = startDate.getDate();
+  
+  const remainingDays = daysInMonth - joinDay + 1;
+  if (remainingDays === daysInMonth) return monthlyRent;
+  
+  const dailyRent = monthlyRent / daysInMonth;
+  return Math.round(dailyRent * remainingDays);
+}
+
 export async function parseCSVTenants(csvContent: string): Promise<TenantBulkPreview[]> {
   const lines = csvContent.trim().split('\n')
   const previews: TenantBulkPreview[] = []
@@ -202,6 +217,12 @@ export async function bulkCreateTenants(
         continue
       }
 
+      // Re-use the emailUser lookup to also get their DB id for linking
+      const existingUserId = await prisma.user.findUnique({
+        where: { email: tenant.email },
+        select: { id: true },
+      }).then(u => u?.id ?? null)
+
       const tenantProfile = await prisma.tenantProfile.create({
         data: {
           ownerId: user.id,
@@ -212,18 +233,75 @@ export async function bulkCreateTenants(
           status: 'ACTIVE',
           isVerified: false,
           invitedAt: new Date(),
+          // Auto-link if a User account already exists with this email
+          ...(existingUserId ? { userId: existingUserId } : {}),
           leases: {
             create: {
               propertyId,
-              startDate: new Date(),
+              startDate: tenant.startDate ? new Date(tenant.startDate) : new Date(),
+              endDate: tenant.startDate && tenant.leaseMonths ? new Date(new Date(tenant.startDate).setMonth(new Date(tenant.startDate).getMonth() + tenant.leaseMonths)) : null,
               rentAmount: new Decimal(tenant.rent),
               deposit: new Decimal(tenant.deposit),
-              rentDueDay: 1,
+              rentDueDay: tenant.rentDueDay || 1,
+              graceDays: 5,
+              prorateFirstMonth: true,
+              collectAdvanceRent: true,
               isActive: true,
             }
           }
         },
+        include: { leases: true }
       })
+
+      const createdLease = tenantProfile.leases[0]
+      const invoicesToCreate = []
+
+      // 1. Generate DEPOSIT Invoice
+      if (tenant.deposit > 0) {
+        invoicesToCreate.push({
+          tenantProfileId: tenantProfile.id,
+          leaseId: createdLease.id,
+          propertyId,
+          type: 'DEPOSIT' as const,
+          month: createdLease.startDate.getMonth() + 1,
+          year: createdLease.startDate.getFullYear(),
+          amount: new Decimal(tenant.deposit),
+          dueDate: createdLease.startDate,
+          status: 'PENDING' as const
+        })
+      }
+
+      // 2. Generate First RENT Invoice (if advance collection enabled)
+      if (createdLease.collectAdvanceRent) {
+        const calculatedRent = calculateFirstMonthRent(
+          createdLease.startDate, 
+          tenant.rent, 
+          createdLease.prorateFirstMonth
+        )
+        
+        let due = new Date(createdLease.startDate.getFullYear(), createdLease.startDate.getMonth(), createdLease.rentDueDay)
+        if (due < createdLease.startDate) {
+          due = createdLease.startDate // If due day is past, it's due on start date
+        }
+
+        invoicesToCreate.push({
+          tenantProfileId: tenantProfile.id,
+          leaseId: createdLease.id,
+          propertyId,
+          type: 'RENT' as const,
+          month: createdLease.startDate.getMonth() + 1,
+          year: createdLease.startDate.getFullYear(),
+          amount: new Decimal(calculatedRent),
+          dueDate: due,
+          status: 'PENDING' as const
+        })
+      }
+
+      if (invoicesToCreate.length > 0) {
+        await prisma.invoice.createMany({
+          data: invoicesToCreate
+        })
+      }
 
       const room = property.rooms.find(r => r.id === tenant.roomId)
       

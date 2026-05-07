@@ -20,6 +20,7 @@ interface Property {
 interface Room {
   id: string
   roomNumber: string
+  currentRent?: string | number
 }
 
 interface SingleTenantFormProps {
@@ -40,10 +41,11 @@ export function SingleTenantForm({ onSuccess, initialPropertyId, initialRoomId, 
   
   const [email, setEmail] = useState('')
   const [rent, setRent] = useState(initialRent?.toString() || '')
-  const [deposit, setDeposit] = useState('')
+  const [deposit, setDeposit] = useState(initialRent ? (Number(initialRent) * 2).toString() : '')
   
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
   const [leaseMonths, setLeaseMonths] = useState('12')
+  const [rentDueDay, setRentDueDay] = useState('1')
 
   useEffect(() => {
     if (isGlobal) {
@@ -60,6 +62,17 @@ export function SingleTenantForm({ onSuccess, initialPropertyId, initialRoomId, 
         .then(data => setRooms(data))
     }
   }, [propertyId, isGlobal])
+
+  // Autofill rent and deposit when room changes
+  useEffect(() => {
+    if (isGlobal && roomId && rooms.length > 0) {
+      const selectedRoom = rooms.find(r => r.id === roomId)
+      if (selectedRoom?.currentRent) {
+        setRent(selectedRoom.currentRent.toString())
+        setDeposit((Number(selectedRoom.currentRent) * 2).toString())
+      }
+    }
+  }, [roomId, rooms, isGlobal])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,8 +106,22 @@ export function SingleTenantForm({ onSuccess, initialPropertyId, initialRoomId, 
           }
         }
       }
-      const tenant = { rowIndex: 1, email, roomId, rent: Number(rent), deposit: Number(deposit), isValid: true }
-      const res = await bulkCreateTenants(propertyId, [tenant])
+      
+      const tenantPayload = { 
+        rowIndex: 1, 
+        email, 
+        roomId, 
+        rent: Number(rent), 
+        deposit: Number(deposit), 
+        startDate,
+        leaseMonths: Number(leaseMonths),
+        rentDueDay: Number(rentDueDay),
+        isValid: true 
+      }
+      
+      console.log('Submitting tenant:', tenantPayload)
+      const res = await bulkCreateTenants(propertyId, [tenantPayload])
+      console.log('Result:', res)
       
       if (res.success > 0) {
         toast.success('Tenant successfully added and invited!')
@@ -127,6 +154,7 @@ export function SingleTenantForm({ onSuccess, initialPropertyId, initialRoomId, 
         toast.error(res.details.errors[0]?.error || 'Failed to add tenant')
       }
     } catch (error) {
+      console.error('Submit error:', error)
       toast.error(error instanceof Error ? error.message : 'An error occurred')
     } finally {
       setLoading(false)
@@ -256,6 +284,22 @@ export function SingleTenantForm({ onSuccess, initialPropertyId, initialRoomId, 
                 <SelectItem value="24">24 Months</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+        </div>
+
+        {/* Rent Due Day */}
+        <div className="space-y-1.5">
+          <Label className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Rent Due Day (1-28)</Label>
+          <div className="relative">
+            <Input 
+              type="number" 
+              min="1"
+              max="28"
+              value={rentDueDay} 
+              onChange={e => setRentDueDay(e.target.value)} 
+              className={`${inputClass}`} 
+              required
+            />
           </div>
         </div>
 

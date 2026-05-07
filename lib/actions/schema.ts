@@ -54,6 +54,9 @@ export interface TenantBulkPreview {
   roomId: string
   rent: number
   deposit: number
+  startDate?: string
+  leaseMonths?: number
+  rentDueDay?: number
   isValid: boolean
   error?: string
   warnings?: string[]

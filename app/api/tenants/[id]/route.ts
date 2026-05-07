@@ -28,8 +28,18 @@ export async function GET(
         user: true,
         property: true,
         room: true,
-        leases: true,
-      }
+        leases: {
+          orderBy: { startDate: 'desc' },
+        },
+        invoices: {
+          orderBy: [{ year: 'desc' }, { month: 'desc' }],
+          include: {
+            payments: {
+              orderBy: { createdAt: 'desc' },
+            },
+          },
+        },
+      },
     })
 
     if (!tenant) {

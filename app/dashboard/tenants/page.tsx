@@ -14,11 +14,14 @@ import { SingleTenantForm } from '@/components/forms/single-tenant-form'
 
 interface Tenant {
   id: string
-  user: {
+  name: string
+  email: string | null
+  phone: string | null
+  user?: {
     name: string | null
     email: string | null
     phone: string | null
-  }
+  } | null
   property: { name: string }
   room: { roomNumber: string }
 }
@@ -191,11 +194,11 @@ export default function TenantsPage() {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400 font-bold text-lg border border-orange-200/50 dark:border-orange-800/50">
-                    {tenant.user.name ? tenant.user.name.charAt(0).toUpperCase() : <User className="h-6 w-6" />}
+                    {tenant.name ? tenant.name.charAt(0).toUpperCase() : <User className="h-6 w-6" />}
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900 dark:text-white text-lg group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors truncate max-w-[150px]">
-                      {tenant.user.name || 'Pending Invite'}
+                      {tenant.name || 'Pending Invite'}
                     </h3>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 border border-emerald-200/50">
                       Active
@@ -208,12 +211,12 @@ export default function TenantsPage() {
               <div className="space-y-2.5 mb-5 flex-1">
                 <div className="flex items-center gap-2 text-[13px] text-gray-600 dark:text-gray-400">
                   <Mail className="h-4 w-4 text-gray-400 shrink-0" />
-                  <span className="truncate">{tenant.user.email || 'No email'}</span>
+                  <span className="truncate">{tenant.email || 'No email'}</span>
                 </div>
-                {tenant.user.phone && (
+                {tenant.phone && (
                   <div className="flex items-center gap-2 text-[13px] text-gray-600 dark:text-gray-400">
                     <Phone className="h-4 w-4 text-gray-400 shrink-0" />
-                    <span>{tenant.user.phone}</span>
+                    <span>{tenant.phone}</span>
                   </div>
                 )}
               </div>
