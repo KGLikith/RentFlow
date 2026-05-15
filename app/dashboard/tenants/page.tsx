@@ -8,6 +8,7 @@ import {
   Dialog,
   DialogContent,
   DialogTrigger,
+  DialogTitle,
 } from '@/components/ui/dialog'
 import {
   Tabs,
@@ -140,6 +141,7 @@ function GlobalAddTenantDialog({ onSuccess }: { onSuccess: () => void }) {
         </Button>
       </DialogTrigger>
       <DialogContent aria-describedby={undefined} className="w-[100vw] max-w-[100vw] sm:max-w-[550px] h-[100dvh] sm:h-auto p-0 overflow-hidden rounded-none sm:rounded-2xl border-0 bg-white dark:bg-gray-950 shadow-2xl">
+        <DialogTitle className="sr-only">Add Tenant</DialogTitle>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col">
           <div className="px-6 pt-6 pb-2">
             <TabsList className="grid w-full grid-cols-2 bg-gray-100 dark:bg-gray-900 rounded-xl p-1">
@@ -395,8 +397,8 @@ export default function TenantsPage() {
         <div className="min-w-0">
           <h1
             className="
-              text-[2rem]
-              sm:text-3xl
+              text-[1.75rem]
+              sm:text-[2rem]
               font-extrabold
               tracking-tight
               text-gray-900
@@ -406,7 +408,7 @@ export default function TenantsPage() {
             Tenants
           </h1>
 
-          <p className="mt-0.5 text-[13px] sm:text-sm text-gray-500">
+          <p className="mt-0.5 text-[12px] sm:text-[13px] font-medium text-gray-500">
             Track tenants and payment activity.
           </p>
         </div>
@@ -445,6 +447,11 @@ export default function TenantsPage() {
                   border-gray-200
                   bg-white
                   pl-10
+                  text-[13px]
+                  sm:text-sm
+                  font-medium
+                  placeholder:text-gray-400
+                  placeholder:font-normal
                   dark:bg-gray-950
                   dark:border-gray-800
                 "
@@ -487,17 +494,17 @@ export default function TenantsPage() {
             value={propertyFilter}
             onValueChange={setPropertyFilter}
           >
-            <SelectTrigger className="h-10 sm:h-11 rounded-2xl border-gray-200 bg-white dark:bg-gray-950 dark:border-gray-800">
+            <SelectTrigger className="h-10 sm:h-11 rounded-2xl border-gray-200 bg-white dark:bg-gray-950 dark:border-gray-800 text-[13px] sm:text-sm font-medium">
               <SelectValue placeholder="All Properties" />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="ALL">
+              <SelectItem value="ALL" className="text-[13px] sm:text-sm">
                 All Properties
               </SelectItem>
 
               {uniqueProperties.map((p) => (
-                <SelectItem key={p} value={p}>
+                <SelectItem key={p} value={p} className="text-[13px] sm:text-sm">
                   {p}
                 </SelectItem>
               ))}
@@ -514,24 +521,25 @@ export default function TenantsPage() {
 
           <Select
             value={sortBy}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onValueChange={(val: any) =>
               setSortBy(val)
             }
           >
-            <SelectTrigger className="h-10 sm:h-11 rounded-2xl border-gray-200 bg-white dark:bg-gray-950 dark:border-gray-800">
+            <SelectTrigger className="h-10 sm:h-11 rounded-2xl border-gray-200 bg-white dark:bg-gray-950 dark:border-gray-800 text-[13px] sm:text-sm font-medium">
               <SelectValue placeholder="Sort tenants" />
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="name">
+              <SelectItem value="name" className="text-[13px] sm:text-sm">
                 Tenant Name
               </SelectItem>
 
-              <SelectItem value="room">
+              <SelectItem value="room" className="text-[13px] sm:text-sm">
                 Room Number
               </SelectItem>
 
-              <SelectItem value="status">
+              <SelectItem value="status" className="text-[13px] sm:text-sm">
                 Status
               </SelectItem>
             </SelectContent>
@@ -567,7 +575,7 @@ export default function TenantsPage() {
           >
             <ArrowUpDown className="h-4 w-4" />
 
-            <span className="text-sm font-medium">
+            <span className="text-[13px] sm:text-sm font-medium">
               {sortOrder === 'asc'
                 ? 'Ascending'
                 : 'Descending'}

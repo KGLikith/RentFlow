@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import OwnerProfile from './onboarding/owner-profile'
 import CreateProperty from './onboarding/create-property'
 import NoProperty from './onboarding/tenant-not-assigned'
@@ -51,6 +51,7 @@ export function ProfileGate({ children }: { children: React.ReactNode }) {
           onInteractOutside={(e) => e.preventDefault()} 
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
+          <DialogTitle className="sr-only">Profile Gate</DialogTitle>
           {state === 'INCOMPLETE_PROFILE' && <OwnerProfile defaultValues={userData} onDone={() => location.reload()} />}
           {state === 'NO_PROPERTY' && <CreateProperty onDone={() => location.reload()} />}
           {state === 'UNASSIGNED' && <NoProperty />}

@@ -466,6 +466,7 @@ export default function PropertyDetailPage() {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl">
+                  <DialogTitle className="sr-only">Add Room</DialogTitle>
                   <RoomForm
                     propertyId={propertyId}
                     totalFloors={property.totalFloors || 1}
@@ -521,6 +522,7 @@ export default function PropertyDetailPage() {
       {/* Edit Property modal */}
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
         <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-3xl border-0 shadow-2xl">
+          <DialogTitle className="sr-only">Edit Property</DialogTitle>
           <PropertyForm
             initialData={{
               ...property,

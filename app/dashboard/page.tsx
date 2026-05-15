@@ -14,7 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  Dialog, DialogContent, DialogTrigger,
+  Dialog, DialogContent, DialogTrigger, DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { PropertyForm } from '@/components/forms/property-form'
@@ -110,6 +110,7 @@ export default function DashboardPage() {
                   </button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl">
+                  <DialogTitle className="sr-only">Add Property</DialogTitle>
                   <PropertyForm onSuccess={() => {
                     setAddOpen(false)
                     queryClient.invalidateQueries({ queryKey: ['dashboard-data'] })
@@ -209,6 +210,7 @@ export default function DashboardPage() {
                 </button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl">
+                <DialogTitle className="sr-only">Add Property</DialogTitle>
                 <PropertyForm onSuccess={() => {
                   setAddOpen(false)
                   queryClient.invalidateQueries({ queryKey: ['dashboard-data'] })

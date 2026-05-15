@@ -429,6 +429,7 @@ export default function RoomDetailPage() {
                           </Button>
                         </DialogTrigger>
                         <DialogContent aria-describedby={undefined} className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl">
+                          <DialogTitle className="sr-only">Add Tenant</DialogTitle>
                           <SingleTenantForm 
                             initialPropertyId={propertyId} 
                             initialRoomId={roomId} 
@@ -450,6 +451,7 @@ export default function RoomDetailPage() {
 
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
         <DialogContent aria-describedby={undefined} className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl">
+          <DialogTitle className="sr-only">Edit Room</DialogTitle>
           <RoomForm
             propertyId={propertyId}
             totalFloors={(room.property as { totalFloors?: number })?.totalFloors || 1}

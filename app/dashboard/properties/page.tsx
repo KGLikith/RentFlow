@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { Building2, MapPin, BedDouble, Plus, Search } from 'lucide-react'
 import {
-  Dialog, DialogContent, DialogTrigger,
+  Dialog, DialogContent, DialogTrigger, DialogTitle,
 } from '@/components/ui/dialog'
 import { PropertyForm } from '@/components/forms/property-form'
 import { useRentProperties } from '@/hooks/useDashboard'
@@ -43,6 +43,7 @@ export default function PropertiesPage() {
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl">
+            <DialogTitle className="sr-only">Add Property</DialogTitle>
             <PropertyForm onSuccess={() => {
               setOpen(false)
               queryClient.invalidateQueries({ queryKey: ['dashboard-data'] })
@@ -93,6 +94,7 @@ export default function PropertiesPage() {
                     </button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl">
+                    <DialogTitle className="sr-only">Add Property</DialogTitle>
                     <PropertyForm onSuccess={() => {
                       setOpen(false)
                       queryClient.invalidateQueries({ queryKey: ['dashboard-data'] })
